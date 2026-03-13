@@ -5,33 +5,35 @@ import * as api from '@/api/hid.ts';
 import { isModifier } from '@/lib/keymap';
 import { leaderKeyAtom } from '@/jotai/keyboard.ts';
 
-type SendKeyEvent = (type: 'keydown' | 'keyup', code: string) => void;
-
 interface LeaderKeyState {
   code: string;
-  isPressed: boolean;
-  hasOtherKeys: boolean;
+  startTime: number;
   recordMode: boolean;
   recordModifiers: string[];
 }
 
 interface LeaderKeyHandlers {
-  handleKeyDown: (code: string, sendKeyEvent: SendKeyEvent) => boolean;
-  handleKeyUp: (code: string, sendKeyEvent: SendKeyEvent) => boolean;
-  reset: (sendKeyEvent?: SendKeyEvent) => void;
+  handleKeyDown: (code: string) => boolean;
+  handleKeyUp: (code: string) => boolean;
+  reset: () => void;
   recordMode: boolean;
   recordedKeys: string[];
 }
 
-export function useLeaderKey(pressedKeys: React.MutableRefObject<Set<string>>): LeaderKeyHandlers {
+const RECORD_MODE_THRESHOLD_MS = 350;
+
+export function useLeaderKey(
+  pressedKeys: React.MutableRefObject<Set<string>>,
+  sendKeyEvent: (type: 'keydown' | 'keyup', code: string) => void
+): LeaderKeyHandlers {
   const [leaderKeyCode, setLeaderKeyCode] = useAtom(leaderKeyAtom);
+
   const [recordMode, setRecordMode] = useState(false);
   const [recordedKeys, setRecordedKeys] = useState<string[]>([]);
 
   const leaderState = useRef<LeaderKeyState>({
     code: '',
-    isPressed: false,
-    hasOtherKeys: false,
+    startTime: 0,
     recordMode: false,
     recordModifiers: []
   });
@@ -50,17 +52,18 @@ export function useLeaderKey(pressedKeys: React.MutableRefObject<Set<string>>): 
     leaderState.current.code = leaderKeyCode;
   }, [leaderKeyCode]);
 
-  const updateRecordedKeysUI = () => {
-    setRecordedKeys([...leaderState.current.recordModifiers]);
-  };
-
-  const handleKeyDown = (code: string, sendKeyEvent: SendKeyEvent): boolean => {
+  const handleKeyDown = (code: string): boolean => {
     const leader = leaderState.current;
 
     // Leader key pressed
     if (leader.code && code === leader.code) {
-      leader.isPressed = true;
-      leader.hasOtherKeys = false;
+      if (!leader.recordMode) {
+        // Enter record mode
+        leader.startTime = Date.now();
+        leader.recordMode = true;
+        setRecordMode(true);
+      }
+
       pressedKeys.current.add(code);
       return true;
     }
@@ -71,7 +74,7 @@ export function useLeaderKey(pressedKeys: React.MutableRefObject<Set<string>>): 
         // Modifier: send keydown immediately and track it
         if (!leader.recordModifiers.includes(code)) {
           leader.recordModifiers.push(code);
-          updateRecordedKeysUI();
+          setRecordedKeys([...leaderState.current.recordModifiers]);
           sendKeyEvent('keydown', code);
         }
       } else {
@@ -83,41 +86,18 @@ export function useLeaderKey(pressedKeys: React.MutableRefObject<Set<string>>): 
       return true;
     }
 
-    // Hold mode
-    if (leader.isPressed) {
-      leader.hasOtherKeys = true;
-      return false;
-    }
-
     return false;
   };
 
-  const handleKeyUp = (code: string, sendKeyEvent: SendKeyEvent): boolean => {
+  const handleKeyUp = (code: string): boolean => {
     const leader = leaderState.current;
 
     // Leader key released
     if (leader.code && code === leader.code) {
-      if (!leader.hasOtherKeys) {
-        if (leader.recordMode) {
-          // Exit record mode: release all used modifiers
-          for (const key of leader.recordModifiers) {
-            sendKeyEvent('keyup', key);
-          }
-          leader.recordModifiers = [];
-          setRecordedKeys([]);
-          leader.recordMode = false;
-          setRecordMode(false);
-        } else {
-          // Enter record mode
-          leader.recordMode = true;
-          setRecordMode(true);
-        }
+      if (leader.recordMode && Date.now() - leader.startTime > RECORD_MODE_THRESHOLD_MS) {
+        // Exit record mode
+        reset();
       }
-
-      leader.isPressed = false;
-      leader.hasOtherKeys = false;
-      pressedKeys.current.delete(code);
-      return true;
     }
 
     // In record mode, handle keyup
@@ -129,20 +109,17 @@ export function useLeaderKey(pressedKeys: React.MutableRefObject<Set<string>>): 
     return false;
   };
 
-  const reset = (sendKeyEvent?: SendKeyEvent) => {
+  const reset = () => {
     const leader = leaderState.current;
 
-    // Release all used modifiers if sendKeyEvent is provided
-    if (sendKeyEvent) {
-      for (const key of leader.recordModifiers) {
-        sendKeyEvent('keyup', key);
-      }
+    for (const key of leader.recordModifiers) {
+      sendKeyEvent('keyup', key);
     }
 
-    leader.isPressed = false;
-    leader.hasOtherKeys = false;
+    leader.startTime = 0;
     leader.recordMode = false;
     leader.recordModifiers = [];
+
     setRecordMode(false);
     setRecordedKeys([]);
   };

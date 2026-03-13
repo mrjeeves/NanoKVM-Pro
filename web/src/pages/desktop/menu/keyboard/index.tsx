@@ -14,12 +14,13 @@ export const Keyboard = () => {
 
   const content = (
     <div className="flex flex-col space-y-1">
-      <LeaderKey />
-      <Divider style={{ margin: '5px 0', opacity: 0.5 }} />
-
       <Paste />
       <VirtualKeyboard />
       <Shortcuts />
+
+      <Divider style={{ margin: '5px 0', opacity: 0.5 }} />
+
+      <LeaderKey />
     </div>
   );
 

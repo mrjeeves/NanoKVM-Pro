@@ -29,7 +29,7 @@ export const Keyboard = () => {
   };
 
   // Init leader key handler
-  const leaderKey = useLeaderKey(pressedKeys);
+  const leaderKey = useLeaderKey(pressedKeys, sendKeyEvent);
   const leaderKeyRef = useRef(leaderKey);
   leaderKeyRef.current = leaderKey;
 
@@ -57,7 +57,7 @@ export const Keyboard = () => {
       if (!code || pressedKeys.current.has(code)) return;
 
       // Handle leader key
-      const leaderHandled = leaderKeyRef.current.handleKeyDown(code, sendKeyEvent);
+      const leaderHandled = leaderKeyRef.current.handleKeyDown(code);
       if (leaderHandled) {
         return;
       }
@@ -80,7 +80,7 @@ export const Keyboard = () => {
       if (!code) return;
 
       // Handle leader key release
-      const leaderHandled = leaderKeyRef.current.handleKeyUp(code, sendKeyEvent);
+      const leaderHandled = leaderKeyRef.current.handleKeyUp(code);
       if (leaderHandled) {
         return;
       }
@@ -132,7 +132,7 @@ export const Keyboard = () => {
       });
       pressedKeys.current.clear();
 
-      leaderKeyRef.current.reset(sendKeyEvent);
+      leaderKeyRef.current.reset();
       altGrRef.current.reset();
 
       const report = keyboardRef.current.reset();

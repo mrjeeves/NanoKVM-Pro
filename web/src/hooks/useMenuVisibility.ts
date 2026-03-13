@@ -68,7 +68,6 @@ export function useMenuVisibility(): MenuVisibilityState {
     if (menuDisplayMode === 'auto') {
       startCountdown();
     } else {
-      setIsMenuHidden(false);
       stopCountdown();
     }
   }, [menuDisplayMode, startCountdown, stopCountdown]);

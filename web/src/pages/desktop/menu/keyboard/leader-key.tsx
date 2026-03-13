@@ -194,12 +194,7 @@ export const LeaderKey = () => {
           )}
 
           <div className="flex w-full justify-center pt-5">
-            <Button
-              className="w-24"
-              type="primary"
-              loading={isLoading}
-              onClick={submit}
-            >
+            <Button className="w-24" type="primary" loading={isLoading} onClick={submit}>
               {t('keyboard.leaderKey.submit')}
             </Button>
           </div>
