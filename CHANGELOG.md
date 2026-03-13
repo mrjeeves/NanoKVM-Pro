@@ -1,3 +1,18 @@
+## 1.2.14 (2026-03-13)
+
+### Features
+
+- Implemented AP password authentication for Wi-Fi configuration on both frontend and backend
+
+### Code Refactoring
+
+- Refactored leader key logic with a record mode threshold
+
+### Chores
+
+- Added version fix tool
+- Fixed version format
+
 ## 1.2.13 (2026-01-29)
 
 ### Bug Fixes
