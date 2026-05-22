@@ -39,6 +39,12 @@ func (s *Service) GetEdid(ctx *gin.Context) {
 		return
 	}
 
+	if len(content) <= 12 {
+		log.Errorf("invalid EDID snapshot length: %d", len(content))
+		resp.ErrRsp(ctx, -1, "get edid failed")
+		return
+	}
+
 	edid, ok := EDIDMap[content[12]]
 	if !ok {
 		// custom EDID
