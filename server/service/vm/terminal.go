@@ -38,6 +38,8 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+var sshDial = ssh.Dial
+
 func (s *Service) TerminalAuth(ctx *gin.Context) {
 	var rsp proto.Response
 	authHeader := ctx.GetHeader("Authorization")
@@ -74,18 +76,22 @@ func (s *Service) TerminalAuth(ctx *gin.Context) {
 		}),
 	}
 
-	sshClient, err := ssh.Dial("tcp", "127.0.0.1", sshConfig)
+	sshClient, err := sshDial("tcp", "127.0.0.1", sshConfig)
 	if err != nil {
-		log.Printf("SSH authentication failed for user %s password %s: %v", credentials[0], credentials[1], err)
+		log.Printf("SSH authentication failed for user %s: %v", credentials[0], err)
 		rsp.ErrRsp(ctx, -1, "authentication failed")
+		return
 	}
 	defer sshClient.Close()
+
 	file, err := os.OpenFile(TeminalAuthLock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Printf("failed to create terminal auth lock file: %v", err)
 		rsp.ErrRsp(ctx, -1, "authentication failed")
+		return
 	}
 	defer file.Close()
+
 	rsp.OkRsp(ctx)
 }
 
