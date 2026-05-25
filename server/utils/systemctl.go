@@ -95,6 +95,10 @@ func DaemonReload() error {
 }
 
 func StartService(name string, enable bool) error {
+	if systemctlClient == nil {
+		return fmt.Errorf("failed to connect to systemd bus")
+	}
+
 	if enable {
 		_, _, err := systemctlClient.EnableUnitFilesContext(context.Background(), []string{name}, false, true)
 		if err != nil {
@@ -133,6 +137,10 @@ func StartService(name string, enable bool) error {
 }
 
 func RestartService(serviceName string) error {
+	if systemctlClient == nil {
+		return fmt.Errorf("failed to connect to systemd bus")
+	}
+
 	ch := make(chan string)
 
 	if _, err := systemctlClient.RestartUnitContext(context.Background(), serviceName, "replace", ch); err != nil {
