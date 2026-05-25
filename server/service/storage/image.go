@@ -185,6 +185,26 @@ func (s *Service) UploadImage(ctx *gin.Context) {
 		return
 	}
 
+	if chunkIndex < 0 {
+		rsp.ErrRsp(ctx, -2, "Invalid chunk index")
+		return
+	}
+
+	if chunkSize <= 0 {
+		rsp.ErrRsp(ctx, -3, "Invalid chunk size")
+		return
+	}
+
+	if totalChunks <= 0 {
+		rsp.ErrRsp(ctx, -4, "Invalid total chunks count")
+		return
+	}
+
+	if chunkIndex >= totalChunks {
+		rsp.ErrRsp(ctx, -2, "Invalid chunk index")
+		return
+	}
+
 	files := form.File["file"]
 	if len(files) == 0 {
 		rsp.ErrRsp(ctx, -5, "No file data found")
@@ -195,14 +215,6 @@ func (s *Service) UploadImage(ctx *gin.Context) {
 	filename := sanitizeFileName(fileHeader.Filename)
 	if filename == "" {
 		rsp.ErrRsp(ctx, -6, "Invalid filename")
-		return
-	}
-
-	if chunkIndex >= totalChunks {
-		rsp.OkRspWithData(ctx, gin.H{
-			"status":   "completed",
-			"filename": filename,
-		})
 		return
 	}
 
