@@ -93,21 +93,17 @@ func (c *Client) UpdateHeartbeat() {
 }
 
 func (c *Client) Close() {
-	_ = c.ws.Close()
+	c.closeOnce.Do(func() {
+		_ = c.ws.Close()
 
-	closeQueue(c.keyboard)
-	closeQueue(c.mouse)
+		close(c.keyboard)
+		close(c.mouse)
 
-	log.Debug("websocket disconnected")
+		log.Debug("websocket disconnected")
+	})
 }
 
 func writeQueue(queue chan []byte, data []byte) {
 	queue <- data
 	jiggler.GetJiggler().Update()
-}
-
-func closeQueue(queue chan []byte) {
-	for range queue {
-	}
-	close(queue)
 }
