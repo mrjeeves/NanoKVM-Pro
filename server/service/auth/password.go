@@ -29,7 +29,17 @@ func (s *Service) ChangePassword(c *gin.Context) {
 		return
 	}
 
+	accountSnapshot, err := backupAccount()
+	if err != nil {
+		log.Errorf("failed to backup account: %s", err)
+		rsp.ErrRsp(c, -4, "failed to save password")
+		return
+	}
+
 	if err = SetAccount(req.Username, string(hashedPassword)); err != nil {
+		if restoreErr := restoreAccount(accountSnapshot); restoreErr != nil {
+			log.Errorf("failed to restore account after save failure: %s", restoreErr)
+		}
 		rsp.ErrRsp(c, -4, "failed to save password")
 		return
 	}
@@ -37,7 +47,9 @@ func (s *Service) ChangePassword(c *gin.Context) {
 	// change root password
 	err = changeRootPassword(req.Password)
 	if err != nil {
-		_ = DelAccount()
+		if restoreErr := restoreAccount(accountSnapshot); restoreErr != nil {
+			log.Errorf("failed to restore account after root password change failure: %s", restoreErr)
+		}
 		rsp.ErrRsp(c, -5, "failed to change password")
 		return
 	}
