@@ -14,6 +14,7 @@ import (
 	"NanoKVM-Server/logger"
 	"NanoKVM-Server/middleware"
 	"NanoKVM-Server/router"
+	"NanoKVM-Server/service/mesh"
 	"NanoKVM-Server/service/vm/jiggler"
 
 	"github.com/gin-gonic/gin"
@@ -65,6 +66,19 @@ func run() {
 	}
 
 	router.Init(r)
+
+	// Native AllMyStuff mesh bridge: join the cloud mesh, advertise this device
+	// as a KVM appliance, and tunnel the web UI over the mesh "sites" plane. The
+	// bridge is non-fatal and retries, so a missing daemon never blocks the LAN
+	// server. RegisterRoutes is always called (nil-tolerant) so the web UI's
+	// Mesh tab can report enabled:false when the bridge is off.
+	var bridge *mesh.Bridge
+	if conf.Mesh.Enabled {
+		bridge = mesh.NewBridge(r, conf)
+		go bridge.Start(make(chan struct{}))
+	}
+	mesh.RegisterRoutes(r, bridge)
+
 	httpAddr := fmt.Sprintf(":%d", conf.Port.Http)
 
 	if conf.Proto == "http" {

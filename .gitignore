@@ -15,6 +15,11 @@ NanoKVM-Server
 support/scripts/NanoKVM-Pro
 support/toolchains/
 
+# Mesh: staged daemon binary (downloaded from the pinned MyOwnMesh release) and
+# any local MyOwnMesh source fallback clone.
+dist/
+.myownmesh-src/
+
 # IDE/Editor
 .idea
 .vscode

@@ -1,0 +1,45 @@
+[Unit]
+Description=MyOwnMesh daemon (native AllMyStuff mesh bridge for NanoKVM-Pro)
+Documentation=https://github.com/mrjeeves/NanoKVM-Pro/blob/main/docs/MESH.md
+# The daemon needs the network and a real wall clock before it joins the mesh
+# (relays use TLS; presence/roster state is timestamped/signed). We order after
+# the time-sync target and chrony; the prestart script is a bounded backstop for
+# a no-RTC cold boot. Before=nanokvm.service is a best-effort nicety so the
+# control socket is up when the server's bridge first connects — the bridge is
+# non-fatal and retries, so this is not a hard dependency.
+Wants=network-online.target
+After=network-online.target time-sync.target chrony.service
+Before=nanokvm.service
+
+[Service]
+Type=simple
+Environment=MYOWNMESH_HOME=/data/myownmesh
+# Data-channel only: the KVM's video rides its own tunnelled web UI (the "sites"
+# plane), never a WebRTC media lane. 0 provisions no media m-lines at all.
+Environment=MYOWNMESH_MEDIA_LANES=0
+# The appliance's daemon version is owned by the NanoKVM-Pro release pipeline
+# (.myownmesh-rev -> bundled binary). Keep the daemon's own self-updater out of
+# the loop, and — unlike the NanoKVM, where boot re-stages a tmpfs copy — on the
+# Pro's writable rootfs a self-updated binary WOULD stick and silently drift
+# from the pin, so this matters more here, not less.
+Environment=MYOWNMESH_AUTOUPDATE=0
+
+# /run/myownmesh (tmpfs, mode 0755, auto-removed on stop) holds the control
+# socket, so it never depends on the data partition's filesystem. The prestart
+# script pins the daemon's config.json at the same path; keep both in sync with
+# the server's mesh.socket in /etc/kvm/server.yaml.
+RuntimeDirectory=myownmesh
+ExecStartPre=/kvmapp/system/bin/myownmesh-prestart.sh /run/myownmesh/daemon.sock
+ExecStart=/kvmapp/system/bin/myownmesh serve
+
+# systemd replaces the NanoKVM init script's shell respawn loop. RestartSec backs
+# a crash-loop off the cores a little; a one-off crash restarts almost at once.
+Restart=on-failure
+RestartSec=2
+# A daemon whose engine is wedged never finishes a graceful shutdown and can
+# survive SIGTERM; give it a few seconds, then systemd escalates to SIGKILL.
+TimeoutStopSec=5
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
