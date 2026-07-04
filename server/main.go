@@ -65,6 +65,12 @@ func run() {
 		r.Use(middleware.Tls())
 	}
 
+	// Give mesh-tunneled requests a session cookie so the web UI's client-side
+	// login gate treats a mesh-authorized viewer as logged in (no KVM password).
+	// Registered before router.Init so it sets the cookie on the SPA's own HTML
+	// response; direct LAN requests are never mesh-marked, so they're unaffected.
+	r.Use(middleware.MeshSessionCookie())
+
 	router.Init(r)
 
 	// Native AllMyStuff mesh bridge: join the cloud mesh, advertise this device
