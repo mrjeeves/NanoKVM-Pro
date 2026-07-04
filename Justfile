@@ -68,7 +68,7 @@ daemon:
       echo "   The aarch64-musl daemon asset ships from MyOwnMesh's release pipeline (the" >&2
       echo "   daemon-aarch64-musl job). Cut a MyOwnMesh release that includes it (just release" >&2
       echo "   <ver>), then set .myownmesh-rev to that tag. Or build it yourself: in a MyOwnMesh" >&2
-      echo "   checkout run 'just build-pro' and copy" >&2
+      echo "   checkout run 'just build-aarch64-musl' and copy" >&2
       echo "   target/aarch64-unknown-linux-musl/release/myownmesh to ${dst}." >&2
       exit 1
     fi
