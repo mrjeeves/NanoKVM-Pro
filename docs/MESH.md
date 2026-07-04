@@ -219,10 +219,19 @@ AllMyStuff `just release`.
 ## Building from source
 
 ```sh
-just setup-pro             # one-time: download the ARM aarch64 toolchain (+ libopus)
-just build-pro             # server (server/build.sh) + pinned daemon (download), one step
+just setup-pro             # one-time: start Docker + build the builder image (bakes the toolchain)
+just build-pro             # server (in Docker) + pinned daemon (download), one step
 just deploy <device-ip>    # scp the server + daemon + unit to a device
 ```
+
+The server builds inside a `linux/amd64` Docker image (`docker/Dockerfile`) with
+Go and the ARM aarch64 cross toolchain baked in — mirroring the NanoKVM's Docker
+builder. **This is why it works on a Mac:** the ARM GNU toolchain
+(`support/scripts/config.ini`) is an x86_64 *Linux* binary that cannot execute on
+macOS natively; in the `linux/amd64` container it runs under Rosetta/QEMU.
+`setup-pro` starts a Docker runtime (installing/starting Colima on a Mac) and
+builds the image; `build-server` runs `server/build.sh` inside it against the
+mounted repo. On a native x86_64 Linux box it's the same image, no emulation.
 
 The daemon is never compiled here: it's downloaded from the MyOwnMesh release
 pinned in `.myownmesh-rev` (MyOwnMesh cross-compiles it with cargo-zigbuild — a
