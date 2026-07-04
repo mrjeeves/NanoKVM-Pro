@@ -32,6 +32,7 @@ nanokvm_repo := "https://github.com/mrjeeves/NanoKVM-Pro"
 unit_src := "packaging/systemd/myownmesh.service"
 prestart_src := "packaging/systemd/myownmesh-prestart.sh"
 image := "nanokvm-pro-builder"
+web_image := "nanokvm-pro-web-builder"
 platform := "linux/amd64"
 
 default: help
@@ -116,9 +117,11 @@ build-server:
 # where the viewer maps it to http://localhost:<port>. The firmware's stock Pro
 # SPA renders on its own https://<ip> origin but goes BLANK at that tunnel origin
 # — so we ship OUR build, which is origin-relative (vite base '/') and renders
-# through the tunnel byte-for-byte identically to direct access. Built in node:22
-# (vite 7 needs Node >=20) so a Mac without Node still builds it; the output is
-# plain JS, so there's no amd64 pin here (native arch = faster, same bytes).
+# through the tunnel byte-for-byte identically to direct access. Built in a
+# node:22 image (vite 7 needs Node >=20) so a Mac without Node still builds it;
+# the output is plain JS, so there's no amd64 pin here (native arch = same bytes,
+# and faster). The web-builder image bakes node-gyp's toolchain (python3/g++) —
+# see docker/web.Dockerfile for why an optional `ws` addon forces that.
 build-web:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -126,12 +129,15 @@ build-web:
       echo "==> Docker not running — running setup-pro first (bootstraps Docker)…"
       just setup-pro
     fi
-    echo "==> building the web bundle (vite) in node:22…"
+    if ! docker image inspect {{web_image}} >/dev/null 2>&1; then
+      echo "==> building the web-builder image (node:22 + node-gyp toolchain)…"
+      docker build -t {{web_image}} -f docker/web.Dockerfile docker
+    fi
+    echo "==> building the web bundle (vite) in {{web_image}}…"
     docker run --rm \
       -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
-      -v "$(pwd)/web:/web" -w /web node:22-bookworm-slim bash -c '
+      -v "$(pwd)/web:/web" -w /web {{web_image}} bash -c '
         set -e
-        npm install -g pnpm@10 >/dev/null 2>&1
         pnpm install --frozen-lockfile
         pnpm run build
         chown -R "${HOST_UID}:${HOST_GID}" dist node_modules 2>/dev/null || true
