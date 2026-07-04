@@ -1,3 +1,4 @@
+# check=skip=FromPlatformFlagConstDisallowed
 # Build NanoKVM-Server (with the mesh bridge) for the AX630C on ANY host.
 #
 # Pinned to linux/amd64 because the ARM GNU cross toolchain (support/scripts/
