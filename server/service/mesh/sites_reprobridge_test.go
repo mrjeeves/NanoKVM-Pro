@@ -35,7 +35,8 @@ func TestReproTunnelBridge(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.Recovery())
-	engine.Use(middleware.Tls()) // Pro runs this (proto=https); tunnel requests bypass it
+	engine.Use(middleware.Tls())               // Pro runs this (proto=https); tunnel requests bypass it
+	engine.Use(middleware.MeshSessionCookie()) // issue the login-bypass cookie on mesh requests
 	engine.Use(static.Serve("/", static.LocalFile(webDist, true)))
 
 	const port = uint16(443)
