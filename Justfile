@@ -33,8 +33,10 @@ help:
 
 # One-time: download + set up the ARM GNU aarch64 cross toolchain (into
 # support/toolchains/, with the toolchain.ini that server/build.sh reads).
+# toolchain_setup.sh is CWD-sensitive (it reads ./config.ini and ./getconfig.py),
+# so run it from support/scripts — just like build-server runs build.sh from server.
 setup-pro:
-    @./support/scripts/toolchain_setup.sh
+    @cd support/scripts && ./toolchain_setup.sh
 
 # Build just the Go server (with the mesh bridge) using the aarch64 toolchain.
 # Output: server/NanoKVM-Server.
