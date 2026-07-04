@@ -1,11 +1,11 @@
 name: Release
 
 # Build the NanoKVM-Pro device payload in CI and publish it as ONE release asset
-# — the NanoKVM-Pro server AND the pinned MyOwnMesh daemon bundled together
-# (nanokvm-pro-mesh-aarch64.tar.gz), like AllMyStuff bundles the daemon into its
-# app. So devs (and `just fetch`/`just install`) download a complete,
-# ready-to-deploy build. Triggered by pushing a `v*` tag (see `just release`);
-# workflow_dispatch re-builds an existing tag.
+# — the NanoKVM-Pro server, the web UI bundle, AND the pinned MyOwnMesh daemon
+# bundled together (nanokvm-pro-mesh-aarch64.tar.gz), like AllMyStuff bundles the
+# daemon into its app. So devs (and `just fetch`/`just install`) download a
+# complete, ready-to-deploy build. Triggered by pushing a `v*` tag (see `just
+# release`); workflow_dispatch re-builds an existing tag.
 #
 # The server is the established `server/build.sh` build: it needs Go + the ARM
 # GNU aarch64 cross toolchain (downloaded by support/scripts/toolchain_setup.sh,
@@ -44,6 +44,25 @@ jobs:
 
       - name: Install build prerequisites
         run: sudo apt-get update && sudo apt-get install -y patchelf xz-utils python3
+
+      - name: Set up Node (for the web bundle)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Build the SPA the device serves. This MUST ship in the bundle: the device
+      # serves it over the AllMyStuff mesh "sites" tunnel (http://localhost:<port>
+      # on the viewer), where the firmware's stock Pro SPA goes blank — our
+      # origin-relative build renders through the tunnel identically to direct
+      # access. Mirrors `just build-web`.
+      - name: Build web bundle (vite)
+        working-directory: web
+        run: |
+          set -e
+          npm install -g pnpm@10
+          pnpm install --frozen-lockfile
+          pnpm run build
+          test -f dist/index.html
 
       # Download + set up the ARM GNU aarch64 cross toolchain (pinned + sha256-
       # verified in support/scripts/config.ini) and inject libopus into its
@@ -90,16 +109,18 @@ jobs:
           mkdir -p bundle
           tar -xzf "/tmp/${dasset}" -C bundle            # -> bundle/myownmesh
           cp server/NanoKVM-Server bundle/NanoKVM-Server
+          cp -a web/dist bundle/web                      # -> bundle/web (the SPA)
           chmod +x bundle/NanoKVM-Server bundle/myownmesh
           file bundle/myownmesh bundle/NanoKVM-Server
+          test -f bundle/web/index.html
 
-      # The device payload: the server + the pinned daemon in one tarball
-      # (+ .sha256). `just fetch`/`install` download this single asset.
-      - name: Package device bundle (server + daemon)
+      # The device payload: the server + the web bundle + the pinned daemon in one
+      # tarball (+ .sha256). `just fetch`/`install` download this single asset.
+      - name: Package device bundle (server + web + daemon)
         run: |
           set -e
           NAME="nanokvm-pro-mesh-aarch64"
-          tar -czf "${NAME}.tar.gz" -C bundle NanoKVM-Server myownmesh
+          tar -czf "${NAME}.tar.gz" -C bundle NanoKVM-Server myownmesh web
           sha256sum "${NAME}.tar.gz" > "${NAME}.tar.gz.sha256"
           ls -la "${NAME}.tar.gz"*
 

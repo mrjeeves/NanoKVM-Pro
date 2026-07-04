@@ -3,6 +3,9 @@
 # `just build-pro` produces a COMPLETE device build:
 #   server/NanoKVM-Server         the Go server (with the mesh bridge)
 #   dist/myownmesh                the MyOwnMesh daemon, pinned in .myownmesh-rev
+#   web/dist                      the web UI bundle the device serves — built
+#                                 here, NOT the firmware's stock SPA (which goes
+#                                 blank when served over the mesh "sites" tunnel)
 #
 # The server builds inside a linux/amd64 Docker image (Go + the ARM GNU aarch64
 # cross toolchain, baked by docker/Dockerfile). The toolchain is an x86_64 Linux
@@ -106,8 +109,39 @@ build-server:
       '
     test -f server/NanoKVM-Server && echo "OK -> server/NanoKVM-Server"
 
-# Complete device build: the server + the pinned daemon, staged for deploy.
-build-pro: build-server daemon
+# Build the web UI bundle (the React/vite SPA the device serves) into web/dist.
+#
+# WHY this is built and shipped (the NanoKVM never bothered): the device serves
+# this SPA over BOTH its HTTPS LAN port AND the AllMyStuff mesh "sites" tunnel,
+# where the viewer maps it to http://localhost:<port>. The firmware's stock Pro
+# SPA renders on its own https://<ip> origin but goes BLANK at that tunnel origin
+# — so we ship OUR build, which is origin-relative (vite base '/') and renders
+# through the tunnel byte-for-byte identically to direct access. Built in node:22
+# (vite 7 needs Node >=20) so a Mac without Node still builds it; the output is
+# plain JS, so there's no amd64 pin here (native arch = faster, same bytes).
+build-web:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! docker info >/dev/null 2>&1; then
+      echo "==> Docker not running — running setup-pro first (bootstraps Docker)…"
+      just setup-pro
+    fi
+    echo "==> building the web bundle (vite) in node:22…"
+    docker run --rm \
+      -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+      -v "$(pwd)/web:/web" -w /web node:22-bookworm-slim bash -c '
+        set -e
+        npm install -g pnpm@10 >/dev/null 2>&1
+        pnpm install --frozen-lockfile
+        pnpm run build
+        chown -R "${HOST_UID}:${HOST_GID}" dist node_modules 2>/dev/null || true
+      '
+    test -f web/dist/index.html && echo "OK -> web/dist"
+
+# Complete device build: the server + the pinned daemon + the web bundle, staged
+# for deploy. The web bundle is part of the payload now — the mesh tunnel needs
+# our origin-relative build, not the firmware's stock SPA.
+build-pro: build-server daemon build-web
 
 # The daemon is never built here — MyOwnMesh cross-compiles + publishes it, and
 # this fails with a clear pointer (not a wrong build) if the pinned release has
@@ -180,7 +214,8 @@ fetch VERSION="latest":
     cp "$tmp/NanoKVM-Server" server/NanoKVM-Server
     cp "$tmp/myownmesh"      "{{daemon_dst}}"
     chmod +x server/NanoKVM-Server "{{daemon_dst}}"
-    echo "OK -> server/NanoKVM-Server + {{daemon_dst}}"
+    rm -rf web/dist && mkdir -p web/dist && cp -a "$tmp/web/." web/dist/
+    echo "OK -> server/NanoKVM-Server + {{daemon_dst}} + web/dist"
     echo "Now: just deploy <device-ip>   (or use 'just install <device-ip>')"
 
 # Fetch the prebuilt device bundle (server + daemon) and deploy to a device.
@@ -202,7 +237,7 @@ release VERSION:
     git push origin "v{{VERSION}}"
     echo ""
     echo "✓ pushed tag v{{VERSION}} — the release workflow is building the device bundle."
-    echo "  It publishes nanokvm-pro-mesh-aarch64.tar.gz (server + pinned daemon)."
+    echo "  It publishes nanokvm-pro-mesh-aarch64.tar.gz (server + web + pinned daemon)."
     echo "  Then: just install <device-ip>   (downloads that bundle and deploys)"
 
 # Copy the complete device build (server + daemon + systemd unit) to a device
@@ -212,7 +247,7 @@ release VERSION:
 deploy ip:
     #!/usr/bin/env bash
     set -euo pipefail
-    test -f server/NanoKVM-Server && test -f "{{daemon_dst}}" || { echo "❌ build first: just build-pro"; exit 1; }
+    test -f server/NanoKVM-Server && test -f "{{daemon_dst}}" && test -d web/dist || { echo "❌ build first: just build-pro"; exit 1; }
     echo "==> deploying to {{ip}}…"
     # Bundle the whole payload into ONE tarball → one scp + one ssh (so you type
     # the password twice, not once per file). CRITICAL: the daemon and server run
@@ -226,7 +261,9 @@ deploy ip:
     cp server/NanoKVM-Server  "$tmp/NanoKVM-Server"
     cp "{{prestart_src}}"     "$tmp/myownmesh-prestart.sh"
     cp "{{unit_src}}"         "$tmp/myownmesh.service"
-    tar -czf "$tmp/deploy.tar.gz" -C "$tmp" myownmesh NanoKVM-Server myownmesh-prestart.sh myownmesh.service
+    mkdir -p "$tmp/web"
+    cp -a web/dist/.          "$tmp/web/"
+    tar -czf "$tmp/deploy.tar.gz" -C "$tmp" myownmesh NanoKVM-Server myownmesh-prestart.sh myownmesh.service web
     # Stage on /kvmapp (writable rootfs, same fs as the targets — so the swap is a
     # same-dir rename and there is no tmpfs size limit to worry about).
     scp "$tmp/deploy.tar.gz" root@{{ip}}:/kvmapp/nanokvm-pro-deploy.tar.gz
@@ -244,6 +281,16 @@ deploy ip:
       install_swap "$d/NanoKVM-Server"        /kvmapp/server/NanoKVM-Server
       install_swap "$d/myownmesh-prestart.sh" /kvmapp/system/bin/myownmesh-prestart.sh
       cp -f "$d/myownmesh.service" /etc/systemd/system/myownmesh.service
+      # Web UI bundle: the server serves /kvmapp/server/web (execDir/web) per
+      # request, so unlike a running binary it can be replaced freely — but stage
+      # into web.new and rename over web so a request never sees a half-copied
+      # tree. Same fs (/kvmapp/server), so the rename is atomic.
+      rm -rf /kvmapp/server/web.new /kvmapp/server/web.old
+      mkdir -p /kvmapp/server/web.new
+      cp -a "$d/web/." /kvmapp/server/web.new/
+      [ -d /kvmapp/server/web ] && mv /kvmapp/server/web /kvmapp/server/web.old
+      mv /kvmapp/server/web.new /kvmapp/server/web
+      rm -rf /kvmapp/server/web.old
       rm -rf "$d" /kvmapp/nanokvm-pro-deploy.tar.gz
       systemctl daemon-reload
       systemctl enable myownmesh >/dev/null 2>&1 || true
@@ -265,5 +312,5 @@ undeploy ip:
     @ssh root@{{ip}} 'systemctl disable --now myownmesh 2>/dev/null; rm -f /etc/systemd/system/myownmesh.service /kvmapp/system/bin/myownmesh /kvmapp/system/bin/myownmesh-prestart.sh; systemctl daemon-reload; systemctl restart nanokvm' || true
 
 clean-pro:
-    @rm -rf server/NanoKVM-Server {{daemon_dst}}
+    @rm -rf server/NanoKVM-Server {{daemon_dst}} web/dist
     @echo "removed build outputs"
