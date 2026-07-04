@@ -90,10 +90,15 @@ build-server:
       just setup-pro
     fi
     echo "==> building NanoKVM-Server (in {{image}})…"
+    # bash -c (NOT -lc): a login shell re-sources /etc/profile, which resets PATH
+    # and drops /usr/local/go/bin (the golang image puts Go on PATH via ENV, not
+    # profile) — that made build.sh report "Go is not installed". Also prepend
+    # Go's bin explicitly so it's found regardless of the shell's profile.
     docker run --rm --platform={{platform}} \
       -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
-      -v "$(pwd):/work" {{image}} bash -lc '
+      -v "$(pwd):/work" {{image}} bash -c '
         set -e
+        export PATH="/usr/local/go/bin:${PATH}"
         mkdir -p /work/support/toolchains
         cp /opt/nanokvm-pro/support/toolchains/toolchain.ini /work/support/toolchains/toolchain.ini
         cd /work/server && ./build.sh
