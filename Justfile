@@ -214,12 +214,43 @@ deploy ip:
     set -euo pipefail
     test -f server/NanoKVM-Server && test -f "{{daemon_dst}}" || { echo "❌ build first: just build-pro"; exit 1; }
     echo "==> deploying to {{ip}}…"
-    ssh root@{{ip}} 'mkdir -p /kvmapp/system/bin'
-    scp "{{daemon_dst}}"        root@{{ip}}:/kvmapp/system/bin/myownmesh
-    scp "{{prestart_src}}"      root@{{ip}}:/kvmapp/system/bin/myownmesh-prestart.sh
-    scp "{{unit_src}}"          root@{{ip}}:/etc/systemd/system/myownmesh.service
-    scp server/NanoKVM-Server   root@{{ip}}:/kvmapp/server/NanoKVM-Server
-    ssh root@{{ip}} 'chmod +x /kvmapp/system/bin/myownmesh /kvmapp/system/bin/myownmesh-prestart.sh /kvmapp/server/NanoKVM-Server && systemctl daemon-reload && systemctl enable --now myownmesh && systemctl restart nanokvm'
+    # Bundle the whole payload into ONE tarball → one scp + one ssh (so you type
+    # the password twice, not once per file). CRITICAL: the daemon and server run
+    # from these exact paths, and Linux refuses to overwrite a *running* executable
+    # in place (scp truncates → ETXTBSY, "dest open Failure"). So on the device we
+    # unpack to a temp dir and install each binary by writing it alongside its
+    # target then rename()-ing over it — a rename replaces a running binary fine
+    # (the live process keeps the old inode; the new file takes the path).
+    tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+    cp "{{daemon_dst}}"       "$tmp/myownmesh"
+    cp server/NanoKVM-Server  "$tmp/NanoKVM-Server"
+    cp "{{prestart_src}}"     "$tmp/myownmesh-prestart.sh"
+    cp "{{unit_src}}"         "$tmp/myownmesh.service"
+    tar -czf "$tmp/deploy.tar.gz" -C "$tmp" myownmesh NanoKVM-Server myownmesh-prestart.sh myownmesh.service
+    # Stage on /kvmapp (writable rootfs, same fs as the targets — so the swap is a
+    # same-dir rename and there is no tmpfs size limit to worry about).
+    scp "$tmp/deploy.tar.gz" root@{{ip}}:/kvmapp/nanokvm-pro-deploy.tar.gz
+    # Remote install: unpack, then install each binary by writing it beside its
+    # target (same dir = same fs) and rename()-ing over it — safe even while the
+    # old binary is executing (the live process keeps the old inode). No single
+    # quotes inside this block (it is single-quoted for ssh).
+    ssh root@{{ip}} '
+      set -e
+      d="$(mktemp -d -p /kvmapp)"
+      tar -xzf /kvmapp/nanokvm-pro-deploy.tar.gz -C "$d"
+      mkdir -p /kvmapp/system/bin /kvmapp/server
+      install_swap() { cp -f "$1" "$2.deploytmp" && chmod +x "$2.deploytmp" && mv -f "$2.deploytmp" "$2"; }
+      install_swap "$d/myownmesh"             /kvmapp/system/bin/myownmesh
+      install_swap "$d/NanoKVM-Server"        /kvmapp/server/NanoKVM-Server
+      install_swap "$d/myownmesh-prestart.sh" /kvmapp/system/bin/myownmesh-prestart.sh
+      cp -f "$d/myownmesh.service" /etc/systemd/system/myownmesh.service
+      rm -rf "$d" /kvmapp/nanokvm-pro-deploy.tar.gz
+      systemctl daemon-reload
+      systemctl enable myownmesh >/dev/null 2>&1 || true
+      systemctl restart myownmesh
+      systemctl restart nanokvm
+      echo "device: services restarted"
+    '
     echo "OK — just verify {{ip}}"
 
 reboot ip:
