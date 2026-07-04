@@ -4,9 +4,12 @@
 #   server/NanoKVM-Server         the Go server (with the mesh bridge)
 #   dist/myownmesh                the MyOwnMesh daemon, pinned in .myownmesh-rev
 #
-# The server builds with the ARM GNU aarch64 toolchain (support/scripts/
-# toolchain_setup.sh downloads it and generates the toolchain.ini build.sh
-# reads). The daemon is NOT built here — it's the prebuilt
+# The server builds inside a linux/amd64 Docker image (Go + the ARM GNU aarch64
+# cross toolchain, baked by docker/Dockerfile). The toolchain is an x86_64 Linux
+# binary, so building through Docker is what lets `just build-pro` work on a Mac
+# (it runs under Rosetta/QEMU) — the native toolchain can't execute on macOS.
+# `just setup-pro` builds that image (and sets up a Docker runtime on a Mac).
+# The daemon is NOT built here — it's the prebuilt
 # `myownmesh-linux-aarch64-musl.tar.gz` from the MyOwnMesh release pinned in
 # .myownmesh-rev, downloaded and staged for you. (MyOwnMesh cross-compiles it
 # with cargo-zigbuild; a NanoKVM-Pro never builds Rust.)
@@ -25,25 +28,78 @@ mom_repo := "https://github.com/mrjeeves/MyOwnMesh"
 nanokvm_repo := "https://github.com/mrjeeves/NanoKVM-Pro"
 unit_src := "packaging/systemd/myownmesh.service"
 prestart_src := "packaging/systemd/myownmesh-prestart.sh"
+image := "nanokvm-pro-builder"
+platform := "linux/amd64"
 
 default: help
 
 help:
     @just --list
 
-# One-time: download + set up the ARM GNU aarch64 cross toolchain (into
-# support/toolchains/, with the toolchain.ini that server/build.sh reads).
-# toolchain_setup.sh is CWD-sensitive (it reads ./config.ini and ./getconfig.py),
-# so run it from support/scripts — just like build-server runs build.sh from server.
+# One-time: get a Docker runtime going and build the builder image (Go + the ARM
+# aarch64 cross toolchain baked in — see docker/Dockerfile). On a Mac this
+# installs/starts Colima and enables amd64 emulation so the x86_64-Linux cross
+# toolchain runs (the native toolchain is an x86_64 Linux ELF that can't execute
+# on macOS at all). Idempotent: re-run any time. Mirrors the NanoKVM's setup-risc.
 setup-pro:
-    @cd support/scripts && ./toolchain_setup.sh
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # 1. Ensure a working Docker daemon (any runtime — Colima, Docker Desktop,
+    #    Linux dockerd).
+    if ! docker info >/dev/null 2>&1; then
+      case "$(uname -s)" in
+        Darwin)
+          command -v brew >/dev/null || { echo "❌ Install Homebrew first: https://brew.sh"; exit 1; }
+          command -v colima >/dev/null || { echo "==> installing colima (lightweight Linux VM)…"; brew install colima; }
+          command -v docker >/dev/null || { echo "==> installing the docker CLI…"; brew install docker; }
+          if ! colima status >/dev/null 2>&1; then
+            echo "==> starting colima (first boot takes a minute)…"
+            # vz + Rosetta runs the amd64 toolchain image fast on Apple Silicon;
+            # falls back to a plain start (qemu) on older macOS/Intel.
+            colima start --vm-type=vz --vz-rosetta 2>/dev/null || colima start
+          fi
+          # Make sure linux/amd64 images (the ARM cross toolchain) can run.
+          docker run --privileged --rm tonistiigi/binfmt --install amd64 >/dev/null 2>&1 || true
+          ;;
+        Linux)
+          echo "❌ Docker isn't available. Install it (e.g. 'sudo apt-get install -y docker.io',"
+          echo "   add yourself to the 'docker' group) or see https://docs.docker.com/engine/install/, then re-run."
+          exit 1 ;;
+        *)
+          echo "❌ Unsupported OS for auto-setup — install a Docker-compatible runtime and re-run."; exit 1 ;;
+      esac
+      docker info >/dev/null 2>&1 || { echo "❌ Docker still not reachable after setup."; exit 1; }
+    fi
+    echo "==> Docker runtime OK"
+    # 2. Build the builder image (Go + baked ARM aarch64 toolchain + libopus).
+    echo "==> building the builder image (first run downloads the toolchain)…"
+    docker build --platform={{platform}} \
+      --build-arg HTTP_PROXY="${HTTP_PROXY:-}" --build-arg HTTPS_PROXY="${HTTPS_PROXY:-}" \
+      -t {{image}} -f docker/Dockerfile .
+    echo "OK — now: just build-pro"
 
-# Build just the Go server (with the mesh bridge) using the aarch64 toolchain.
-# Output: server/NanoKVM-Server.
+# Build just the Go server (with the mesh bridge) inside the builder image.
+# Output: server/NanoKVM-Server. The repo is mounted at /work; the baked
+# toolchain.ini (absolute paths into the image) is copied in so build.sh resolves
+# the baked cross compiler, then the output is chown'd back to the caller.
 build-server:
-    @echo "==> building NanoKVM-Server…"
-    @cd server && ./build.sh
-    @test -f server/NanoKVM-Server && echo "OK -> server/NanoKVM-Server"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! docker image inspect {{image}} >/dev/null 2>&1; then
+      echo "==> builder image missing — running setup-pro first…"
+      just setup-pro
+    fi
+    echo "==> building NanoKVM-Server (in {{image}})…"
+    docker run --rm --platform={{platform}} \
+      -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+      -v "$(pwd):/work" {{image}} bash -lc '
+        set -e
+        mkdir -p /work/support/toolchains
+        cp /opt/nanokvm-pro/support/toolchains/toolchain.ini /work/support/toolchains/toolchain.ini
+        cd /work/server && ./build.sh
+        chown "${HOST_UID}:${HOST_GID}" NanoKVM-Server 2>/dev/null || true
+      '
+    test -f server/NanoKVM-Server && echo "OK -> server/NanoKVM-Server"
 
 # Complete device build: the server + the pinned daemon, staged for deploy.
 build-pro: build-server daemon

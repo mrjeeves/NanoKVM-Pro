@@ -1,0 +1,11 @@
+# The builder image only needs support/ (it bakes the toolchain from it); the
+# server source is mounted at run time. Keep the build context small so the
+# image build is fast, especially under emulation on a Mac.
+.git
+web/node_modules
+web/dist
+web/web
+dist
+support/toolchains
+server/NanoKVM-Server
+**/*.log
