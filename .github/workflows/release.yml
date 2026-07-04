@@ -1,0 +1,113 @@
+name: Release
+
+# Build the NanoKVM-Pro device payload in CI and publish it as ONE release asset
+# — the NanoKVM-Pro server AND the pinned MyOwnMesh daemon bundled together
+# (nanokvm-pro-mesh-aarch64.tar.gz), like AllMyStuff bundles the daemon into its
+# app. So devs (and `just fetch`/`just install`) download a complete,
+# ready-to-deploy build. Triggered by pushing a `v*` tag (see `just release`);
+# workflow_dispatch re-builds an existing tag.
+#
+# The server is the established `server/build.sh` build: it needs Go + the ARM
+# GNU aarch64 cross toolchain (downloaded by support/scripts/toolchain_setup.sh,
+# which also injects libopus into the sysroot for the server's CGO opus dep) +
+# the checked-in shared libraries (server/dl_lib) and headers (server/include).
+# The daemon is not built here: it's downloaded from the MyOwnMesh release pinned
+# in .myownmesh-rev and bundled in.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)build the release for'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  server-aarch64:
+    name: Build NanoKVM-Server (linux-aarch64)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Install build prerequisites
+        run: sudo apt-get update && sudo apt-get install -y patchelf xz-utils python3
+
+      # Download + set up the ARM GNU aarch64 cross toolchain (pinned + sha256-
+      # verified in support/scripts/config.ini) and inject libopus into its
+      # sysroot — the same one-shot setup a dev box runs via `just setup-pro`.
+      # This generates the toolchain.ini that server/build.sh reads.
+      - name: Set up ARM aarch64 toolchain (+ libopus sysroot)
+        working-directory: support/scripts
+        run: ./toolchain_setup.sh
+
+      # server/build.sh compiles dl_lib/libkvm.so from source with the aarch64
+      # gcc, then CGO-builds NanoKVM-Server (GOARCH=arm64, GOEXPERIMENT=
+      # boringcrypto) and patchelf's an $ORIGIN/dl_lib rpath so the deployed
+      # binary finds its libs in ./dl_lib on the device.
+      - name: Build NanoKVM-Server (aarch64, CGO/libkvm)
+        working-directory: server
+        run: |
+          set -e
+          ./build.sh
+          test -f NanoKVM-Server
+          file NanoKVM-Server
+          readelf -d NanoKVM-Server | grep -iE 'RPATH|RUNPATH' || true
+
+      # Bundle the pinned MyOwnMesh daemon INTO the release — like AllMyStuff
+      # bundles the daemon into its app. The daemon is the prebuilt
+      # myownmesh-linux-aarch64-musl.tar.gz from the MyOwnMesh release named in
+      # .myownmesh-rev (MyOwnMesh cross-compiles it with cargo-zigbuild). Note the
+      # `-musl` suffix: the plain myownmesh-linux-aarch64.tar.gz is MyOwnMesh's
+      # dynamic-glibc DESKTOP build — the appliance wants the static-musl one.
+      - name: Bundle the pinned MyOwnMesh daemon
+        run: |
+          set -e
+          rev="$(cat .myownmesh-rev)"
+          dasset="myownmesh-linux-aarch64-musl.tar.gz"
+          durl="https://github.com/mrjeeves/MyOwnMesh/releases/download/${rev}/${dasset}"
+          echo "==> bundling daemon ${rev}: ${durl}"
+          if ! curl -fsSL --retry 3 --retry-delay 5 -o "/tmp/${dasset}" "$durl"; then
+            echo "❌ no ${dasset} at MyOwnMesh ${rev}." >&2
+            echo "   .myownmesh-rev must pin a MyOwnMesh release whose pipeline built the" >&2
+            echo "   aarch64-musl daemon (the daemon-aarch64-musl job). Update .myownmesh-rev." >&2
+            exit 1
+          fi
+          curl -fsSL --retry 3 --retry-delay 5 -o "/tmp/${dasset}.sha256" "$durl.sha256"
+          ( cd /tmp && sha256sum -c "${dasset}.sha256" )
+          mkdir -p bundle
+          tar -xzf "/tmp/${dasset}" -C bundle            # -> bundle/myownmesh
+          cp server/NanoKVM-Server bundle/NanoKVM-Server
+          chmod +x bundle/NanoKVM-Server bundle/myownmesh
+          file bundle/myownmesh bundle/NanoKVM-Server
+
+      # The device payload: the server + the pinned daemon in one tarball
+      # (+ .sha256). `just fetch`/`install` download this single asset.
+      - name: Package device bundle (server + daemon)
+        run: |
+          set -e
+          NAME="nanokvm-pro-mesh-aarch64"
+          tar -czf "${NAME}.tar.gz" -C bundle NanoKVM-Server myownmesh
+          sha256sum "${NAME}.tar.gz" > "${NAME}.tar.gz.sha256"
+          ls -la "${NAME}.tar.gz"*
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: |
+            nanokvm-pro-mesh-aarch64.tar.gz
+            nanokvm-pro-mesh-aarch64.tar.gz.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
