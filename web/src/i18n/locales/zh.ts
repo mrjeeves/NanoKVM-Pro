@@ -38,8 +38,8 @@ const zh = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: '配置 NanoKVM Wi-Fi 信息',
-      success: '请前往设备检查 NanoKVM 的网络状态。',
+      description: '配置 AllMyKVM Wi-Fi 信息',
+      success: '请前往设备检查 AllMyKVM 的网络状态。',
       failed: '操作失败，请重试。',
       invalidMode: '当前模式不支持配置网络。请先前往设备启用 Wi-Fi 配置模式。',
       confirmBtn: '确定',
@@ -144,7 +144,7 @@ const zh = {
       title: 'Smart Assistant / 智能助手 ',
       tips: {
         intro:
-          'Smart Assistant 是NanoKVM的实验性功能，可让你体验使用VLM大模型对电脑进行自动化操作，常被称为"Computer Use".\n在使用该功能前请调整视频模式为MJPEG传输，建议屏幕分辨率在720P或以下.\n目前智能助手依赖于外部VLM模型服务，需要你自行填入相应的模型服务器地址和API key，这意味着你填写的模型服务器会收到你的电脑屏幕截图，并可能产生相关tokens费用。\n你也可以自建运行VLM模型的内网服务器来避免上述问题。',
+          'Smart Assistant 是AllMyKVM的实验性功能，可让你体验使用VLM大模型对电脑进行自动化操作，常被称为"Computer Use".\n在使用该功能前请调整视频模式为MJPEG传输，建议屏幕分辨率在720P或以下.\n目前智能助手依赖于外部VLM模型服务，需要你自行填入相应的模型服务器地址和API key，这意味着你填写的模型服务器会收到你的电脑屏幕截图，并可能产生相关tokens费用。\n你也可以自建运行VLM模型的内网服务器来避免上述问题。',
         content:
           '大模型目前仍有不可预知的幻觉风险和受限的操作能力，有可能做出意外的损坏电脑数据的操作，请你务必知晓这个风险，在智能助手操作时，请务必观察其操作，随时中断可能的风险操作！\n点击以下按钮即会在新窗口中打开智能助手，也表示你认可并接受以上风险。\n出于安全性考虑，该服务目前仅允许一个用户使用，且关闭页面后自动关闭服务，需要重新点击按钮来开启。',
         contribute: '该代码已开源，你可放心查看，也欢迎贡献！',
@@ -175,7 +175,7 @@ const zh = {
       resetHid: '重置 HID',
       hidOnly: {
         title: 'HID-Only 模式',
-        desc: '若使用过程中遇到鼠标键盘无响应，且重置 HID 无效，可能是 NanoKVM 与您的设备存在兼容性问题。建议尝试启用 HID-Only 模式以提升兼容性。',
+        desc: '若使用过程中遇到鼠标键盘无响应，且重置 HID 无效，可能是 AllMyKVM 与您的设备存在兼容性问题。建议尝试启用 HID-Only 模式以提升兼容性。',
         tip1: '启用该模式会禁用虚拟U盘和虚拟网卡',
         tip2: '该模式下无法使用镜像挂载功能',
         enable: '启用 HID-Only 模式',
@@ -220,7 +220,7 @@ const zh = {
     },
     terminal: {
       title: '终端',
-      nanokvm: 'NanoKVM 终端',
+      nanokvm: 'AllMyKVM 终端',
       serial: '串口终端',
       serialPort: '串口',
       serialPortPlaceholder: '请输入串口',
@@ -256,16 +256,16 @@ const zh = {
     settings: {
       title: '设置',
       about: {
-        title: '关于 NanoKVM',
+        title: '关于 AllMyKVM',
         information: '信息',
         ip: 'IP',
         mdns: 'mDNS',
         arch: '指令架构',
         device_number: '设备编号',
         application: '应用版本',
-        applicationTip: 'NanoKVM 网页应用版本',
+        applicationTip: 'AllMyKVM 网页应用版本',
         image: '镜像版本',
-        imageTip: 'NanoKVM 系统镜像版本',
+        imageTip: 'AllMyKVM 系统镜像版本',
         deviceKey: '设备码',
         community: '社区',
         hostname: '主机名',
@@ -435,7 +435,7 @@ const zh = {
         diskDesc: '在远程主机中挂载虚拟U盘',
         emmc: {
           warning: '注意',
-          tip1: '第一次挂载 eMMC 会清除 NanoKVM 设备中 /data 目录下的所有数据，在操作前请备份数据。',
+          tip1: '第一次挂载 eMMC 会清除 AllMyKVM 设备中 /data 目录下的所有数据，在操作前请备份数据。',
           tip2: '是否要继续进行挂载？'
         },
         network: '虚拟网卡',
@@ -549,15 +549,15 @@ const zh = {
         logoutDesc: '确定要退出吗？'
       },
       kvmadmin: {
-        title: 'NanoKVM Admin',
-        description: '批量管理 NanoKVM 设备',
+        title: 'AllMyKVM Admin',
+        description: '批量管理 AllMyKVM 设备',
         tip: '该功能使用 mDNS 协议，请确保设备中 mDNS 功能已开启',
         install: '安装',
         start: '运行',
         visit: '访问',
         uninstall: '卸载',
         attention: '注意',
-        confirmUninstall: '确定要卸载 NanoKVM Admin 吗？',
+        confirmUninstall: '确定要卸载 AllMyKVM Admin 吗？',
         clearData: '该操作会删除所有已保存的数据！',
         installFailed: '安装失败，请重试',
         startFailed: '运行失败，请重试',

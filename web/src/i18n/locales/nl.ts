@@ -31,8 +31,8 @@ const nl = {
     },
     wifi: {
       title: 'Wifi',
-      description: 'Wifi configureren voor NanoKVM',
-      success: 'Controleer de netwerkstatus van NanoKVM en bezoek het nieuwe IP-adres.',
+      description: 'Wifi configureren voor AllMyKVM',
+      success: 'Controleer de netwerkstatus van AllMyKVM en bezoek het nieuwe IP-adres.',
       failed: 'De bewerking is mislukt. Probeer het opnieuw.',
       confirmBtn: 'Ok',
       finishBtn: 'Gereed'
@@ -94,7 +94,7 @@ const nl = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'NanoKVM Terminal',
+      nanokvm: 'AllMyKVM Terminal',
       serial: 'Seriële poort terminal',
       serialPort: 'Seriële poort',
       serialPortPlaceholder: 'Voer de seriële poort in',
@@ -118,14 +118,14 @@ const nl = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Over NanoKVM',
+        title: 'Over AllMyKVM',
         information: 'Informatie',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Applicatie versie',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Image versie',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Apparaat sleutel',
         community: 'Community'
       },
@@ -174,8 +174,8 @@ const nl = {
         download: 'Download het',
         package: 'installatiepakket',
         unzip: 'en pak het uit',
-        upTailscale: 'Upload tailscale naar NanoKVM directory /usr/bin/',
-        upTailscaled: 'Upload tailscaled naar NanoKVM directory /usr/sbin/',
+        upTailscale: 'Upload tailscale naar AllMyKVM directory /usr/bin/',
+        upTailscaled: 'Upload tailscaled naar AllMyKVM directory /usr/sbin/',
         refresh: 'Vernieuw huidige pagina',
         notLogin:
           'Het apparaat is nog niet gekoppeld. Log in en koppel dit apparaat aan uw account.',

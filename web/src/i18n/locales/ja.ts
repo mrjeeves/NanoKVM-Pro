@@ -31,8 +31,8 @@ const ja = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please check the network status of NanoKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -94,7 +94,7 @@ const ja = {
     },
     terminal: {
       title: 'ターミナル',
-      nanokvm: 'NanoKVMターミナル',
+      nanokvm: 'AllMyKVMターミナル',
       serial: 'シリアルポートターミナル',
       serialPort: 'シリアルポート',
       serialPortPlaceholder: 'シリアルポートを入力してください',
@@ -118,14 +118,14 @@ const ja = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'NanoKVMについて',
+        title: 'AllMyKVMについて',
         information: '情報',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'アプリケーションバージョン',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'イメージバージョン',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'デバイスキー',
         community: 'コミュニティ',
         pikvm: {
@@ -184,8 +184,8 @@ const ja = {
         retry: 'ページをリフレッシュして再試行してください。または手動でインストールしてください',
         download: 'インストールパッケージをダウンロードして',
         package: '解凍してください',
-        upTailscale: 'tailscaleをNanoKVMのディレクトリ/usr/bin/にアップロードしてください',
-        upTailscaled: 'tailscaledをNanoKVMのディレクトリ/usr/sbin/にアップロードしてください',
+        upTailscale: 'tailscaleをAllMyKVMのディレクトリ/usr/bin/にアップロードしてください',
+        upTailscaled: 'tailscaledをAllMyKVMのディレクトリ/usr/sbin/にアップロードしてください',
         refresh: '現在のページをリフレッシュします',
         notLogin:
           'デバイスはまだバインドされていません。ログインしてこのデバイスをアカウントにバインドしてください。',

@@ -31,8 +31,8 @@ const it = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please check the network status of NanoKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -94,7 +94,7 @@ const it = {
     },
     terminal: {
       title: 'Terminale',
-      nanokvm: 'Terminale NanoKVM',
+      nanokvm: 'Terminale AllMyKVM',
       serial: 'Terminale Porta Seriale',
       serialPort: 'Porta Seriale',
       serialPortPlaceholder: 'Inserisci la porta seriale',
@@ -118,14 +118,14 @@ const it = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Informazioni su NanoKVM',
+        title: 'Informazioni su AllMyKVM',
         information: 'Informazioni',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Versione Applicazione',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Versione Immagine',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Chiave Dispositivo',
         community: 'Comunità'
       },
@@ -174,8 +174,8 @@ const it = {
         download: 'Scarica il',
         package: 'pacchetto di installazione',
         unzip: 'e decomprimilo',
-        upTailscale: 'Carica tailscale nella directory /usr/bin/ del NanoKVM',
-        upTailscaled: 'Carica tailscaled nella directory /usr/sbin/ del NanoKVM',
+        upTailscale: 'Carica tailscale nella directory /usr/bin/ del AllMyKVM',
+        upTailscaled: 'Carica tailscaled nella directory /usr/sbin/ del AllMyKVM',
         refresh: 'Aggiorna la pagina corrente',
         notLogin:
           'Il dispositivo non è ancora stato associato. Effettua il login e associa questo dispositivo al tuo account.',

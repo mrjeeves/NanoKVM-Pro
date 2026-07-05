@@ -31,9 +31,9 @@ const fr = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configurez le Wi-Fi pour le NanoKVM',
+      description: 'Configurez le Wi-Fi pour le AllMyKVM',
       success:
-        'Veuillez vérifier le statut du réseau du NanoKVM et visitez la nouvelle adresse IP.',
+        'Veuillez vérifier le statut du réseau du AllMyKVM et visitez la nouvelle adresse IP.',
       failed: "L'opération a échoué, veuillez réessayer.",
       confirmBtn: 'Ok',
       finishBtn: 'Terminé'
@@ -95,7 +95,7 @@ const fr = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'Terminal NanoKVM',
+      nanokvm: 'Terminal AllMyKVM',
       serial: 'Terminal Port Série',
       serialPort: 'Port série',
       serialPortPlaceholder: 'Veuillez entrer le port série',
@@ -125,14 +125,14 @@ const fr = {
     settings: {
       title: 'Paramètres',
       about: {
-        title: 'A propos de NanoKVM',
+        title: 'A propos de AllMyKVM',
         information: 'Informations',
         ip: 'IP',
         mdns: 'mDNS',
         application: "Version de l'application",
-        applicationTip: "Version de l'application Web NanoKVM",
+        applicationTip: "Version de l'application Web AllMyKVM",
         image: "Version de l'image",
-        imageTip: "Version de l'image système NanoKVM",
+        imageTip: "Version de l'image système AllMyKVM",
         deviceKey: "Clé de l'appareil",
         community: 'Communauté'
       },
@@ -181,8 +181,8 @@ const fr = {
         download: 'Télécharger le',
         package: "paquet d'installation",
         unzip: 'et décompressez-le',
-        upTailscale: 'Téléverser tailscale dans le répertoire NanoKVM /usr/sbin/',
-        upTailscaled: 'Téléverser tailscaled dans le répertoire NanoKVM /usr/sbin/',
+        upTailscale: 'Téléverser tailscale dans le répertoire AllMyKVM /usr/sbin/',
+        upTailscaled: 'Téléverser tailscaled dans le répertoire AllMyKVM /usr/sbin/',
         refresh: 'Rafraîchir la page courante',
         notLogin: "L'appareil n'est pas relié. Connectez-vous et liez cet appareil à votre compte.",
         urlPeriod: "L'URL est valide pendant 10 minutes",

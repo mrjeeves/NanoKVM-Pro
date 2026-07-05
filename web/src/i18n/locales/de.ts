@@ -30,9 +30,9 @@ const de = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Wi-Fi Konfiguration für NanoKVM',
+      description: 'Wi-Fi Konfiguration für AllMyKVM',
       success:
-        'Bitte überprüfen Sie den Netzwerk-Status des NanoKVM und greifen Sie über die neue IP Adresse darauf zu.',
+        'Bitte überprüfen Sie den Netzwerk-Status des AllMyKVM und greifen Sie über die neue IP Adresse darauf zu.',
       failed: 'Aktion fehlgeschlagen, bitte erneut versuchen.',
       confirmBtn: 'Ok',
       finishBtn: 'Fertig'
@@ -73,7 +73,7 @@ const de = {
       resetHid: 'HID zurücksetzen',
       hidOnly: {
         title: 'HID-Only Modus',
-        desc: 'Wenn Ihre Maus und Tastatur nicht mehr reagieren und das Zurücksetzen der HID-Verbindung nicht hilft, könnte es sich um ein Kompatibilitätsproblem zwischen dem NanoKVM und dem Gerät handeln. Versuchen Sie, den HID-Only Modus zu aktivieren, um die Kompatibilität zu verbessern.',
+        desc: 'Wenn Ihre Maus und Tastatur nicht mehr reagieren und das Zurücksetzen der HID-Verbindung nicht hilft, könnte es sich um ein Kompatibilitätsproblem zwischen dem AllMyKVM und dem Gerät handeln. Versuchen Sie, den HID-Only Modus zu aktivieren, um die Kompatibilität zu verbessern.',
         tip1: 'Die Aktivierung des HID-Only Modus entfernt das virtuelle U-Laufwerk und das virtuelle Netzwerk.',
         tip2: 'Im HID-Only Modus ist das Einbinden von Systemabbilder deaktiviert.',
         enable: 'HID-Only Modus aktivieren',
@@ -107,7 +107,7 @@ const de = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'NanoKVM Terminal',
+      nanokvm: 'AllMyKVM Terminal',
       serial: 'Serieller Anschluss Terminal',
       serialPort: 'Serieller Anschluss',
       serialPortPlaceholder: 'Bitte seriellen Anschluss angeben',
@@ -154,14 +154,14 @@ const de = {
     settings: {
       title: 'Einstellungen',
       about: {
-        title: 'Über NanoKVM',
+        title: 'Über AllMyKVM',
         information: 'Informationen',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Applikations-Version',
-        applicationTip: 'NanoKVM Web Applikations-Version',
+        applicationTip: 'AllMyKVM Web Applikations-Version',
         image: 'Systemabbild-Version',
-        imageTip: 'NanoKVM Systemabbild-Version',
+        imageTip: 'AllMyKVM Systemabbild-Version',
         deviceKey: 'Geräte Schlüssel',
         community: 'Community',
         hostname: 'Hostname',
@@ -228,7 +228,7 @@ const de = {
         network: 'Virtuelles Netzwerk',
         networkDesc: 'Binde die virtuelle Netzwerkkarte an den entfernten Host',
         reboot: 'Neustarten',
-        rebootDesc: 'Sind Sie sicher dass Sie NanoKVM neustarten möchten?',
+        rebootDesc: 'Sind Sie sicher dass Sie AllMyKVM neustarten möchten?',
         okBtn: 'Ja',
         cancelBtn: 'Nein'
       },
@@ -246,8 +246,8 @@ const de = {
         download: 'Laden Sie das',
         package: 'Installations-Paket herunter',
         unzip: 'und entpacken Sie es',
-        upTailscale: 'Tailscale nach /usr/bin/ auf NanoKVM hochladen',
-        upTailscaled: 'Tailscaled nach /usr/bin/ auf NanoKVM hochladen',
+        upTailscale: 'Tailscale nach /usr/bin/ auf AllMyKVM hochladen',
+        upTailscaled: 'Tailscaled nach /usr/bin/ auf AllMyKVM hochladen',
         refresh: 'Aktuelle Seite neu laden',
         notLogin:
           'Das Gerät konnte noch nicht gefunden werden. Bitte melden Sie sich an und verknüpfen Sie dieses Gerät mit Ihrem Konto.',

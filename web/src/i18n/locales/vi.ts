@@ -30,8 +30,8 @@ const vi = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please check the network status of NanoKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -92,7 +92,7 @@ const vi = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'Terminal NanoKVM',
+      nanokvm: 'Terminal AllMyKVM',
       serial: 'Terminal Cổng Nối Tiếp',
       serialPort: 'Cổng Nối Tiếp',
       serialPortPlaceholder: 'Vui lòng nhập cổng nối tiếp',
@@ -116,14 +116,14 @@ const vi = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Giới thiệu về NanoKVM',
+        title: 'Giới thiệu về AllMyKVM',
         information: 'Thông tin',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Phiên bản Ứng dụng',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Phiên bản Hình ảnh',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Khóa Thiết bị',
         community: 'Cộng đồng'
       },
@@ -172,8 +172,8 @@ const vi = {
         download: 'Tải xuống',
         package: 'gói cài đặt',
         unzip: 'và giải nén nó',
-        upTailscale: 'Tải tailscale lên thư mục /usr/bin/ của NanoKVM',
-        upTailscaled: 'Tải tailscaled lên thư mục /usr/sbin/ của NanoKVM',
+        upTailscale: 'Tải tailscale lên thư mục /usr/bin/ của AllMyKVM',
+        upTailscaled: 'Tải tailscaled lên thư mục /usr/sbin/ của AllMyKVM',
         refresh: 'Làm mới trang hiện tại',
         notLogin:
           'Thiết bị chưa được liên kết. Vui lòng đăng nhập và liên kết thiết bị này với tài khoản của bạn.',

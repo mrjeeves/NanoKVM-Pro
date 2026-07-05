@@ -29,19 +29,19 @@ const id = {
       loginButtonText: 'Masuk',
       tips: {
         reset1:
-          'To reset the passwords, pressing and holding the BOOT button on the NanoKVM for 10 seconds.',
+          'To reset the passwords, pressing and holding the BOOT button on the AllMyKVM for 10 seconds.',
         reset2: 'For detailed steps, please consult this document:',
         reset3: 'Web default account:',
         change1: 'Please note that this action will change the following passwords:',
         change2: 'Web login password',
         change3: 'System root password (SSH login password)',
-        change4: 'To reset the passwords, press and hold the BOOT button on the NanoKVM.'
+        change4: 'To reset the passwords, press and hold the BOOT button on the AllMyKVM.'
       }
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please check the network status of NanoKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -103,7 +103,7 @@ const id = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'Terminal NanoKVM',
+      nanokvm: 'Terminal AllMyKVM',
       serial: 'Terminal Port Serial',
       serialPort: 'Port Serial',
       serialPortPlaceholder: 'Silahkan masukkan port serial',
@@ -127,14 +127,14 @@ const id = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Tentang NanoKVM',
+        title: 'Tentang AllMyKVM',
         information: 'Informasi',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Versi Aplikasi',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Version Gambar',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Kunci Perangkat',
         community: 'Komunitas'
       },
@@ -183,8 +183,8 @@ const id = {
         download: 'Mengunduh',
         package: 'paket instalasi',
         unzip: 'dan unzip itu',
-        upTailscale: 'Unggah tailscale ke direktori NanoKVM /usr/bin/',
-        upTailscaled: 'Unggah tailscaled ke direktori NanoKVM /usr/sbin/',
+        upTailscale: 'Unggah tailscale ke direktori AllMyKVM /usr/bin/',
+        upTailscaled: 'Unggah tailscaled ke direktori AllMyKVM /usr/sbin/',
         refresh: 'Segarkan halaman ini',
         notLogin:
           'Perangkat belum ditautkan. Silakan masuk dan tautkan perangkat ini ke akun Anda.',

@@ -31,8 +31,8 @@ const cz = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please check the network status of NanoKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -94,7 +94,7 @@ const cz = {
     },
     terminal: {
       title: 'Terminál',
-      nanokvm: 'Terminál NanoKVM',
+      nanokvm: 'Terminál AllMyKVM',
       serial: 'Terminál sériového portu',
       serialPort: 'Sériový port',
       serialPortPlaceholder: 'Zadejte prosím sériový port',
@@ -118,14 +118,14 @@ const cz = {
     settings: {
       title: 'Nastavení',
       about: {
-        title: 'O NanoKVM',
+        title: 'O AllMyKVM',
         information: 'Informace',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Verze aplikace',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Verze obrazu',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Klíč zařízení',
         community: 'Komunita'
       },
@@ -174,8 +174,8 @@ const cz = {
         download: 'Stáhnout',
         package: 'instalační balíček',
         unzip: 'a rozbalit ho',
-        upTailscale: 'Nahrajte Tailscale do adresáře NanoKVM /usr/bin/',
-        upTailscaled: 'Nahrajte Tailscaled do adresáře NanoKVM /usr/sbin/',
+        upTailscale: 'Nahrajte Tailscale do adresáře AllMyKVM /usr/bin/',
+        upTailscaled: 'Nahrajte Tailscaled do adresáře AllMyKVM /usr/sbin/',
         refresh: 'Obnovit stránku',
         notLogin:
           'Zařízení nebylo dosud spárováno. Přihlaste se prosím a spárujte toto zařízení s vaším účtem.',

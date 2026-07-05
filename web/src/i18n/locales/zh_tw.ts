@@ -29,8 +29,8 @@ const zh_tw = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: '設定 NanoKVM WiFi',
-      success: '請檢查 NanoKVM 的網路狀態，並存取新的 IP 位址。',
+      description: '設定 AllMyKVM WiFi',
+      success: '請檢查 AllMyKVM 的網路狀態，並存取新的 IP 位址。',
       failed: '操作失敗，請重試。',
       confirmBtn: '確定',
       finishBtn: '完成'
@@ -89,7 +89,7 @@ const zh_tw = {
     },
     terminal: {
       title: '終端機',
-      nanokvm: 'NanoKVM 終端機',
+      nanokvm: 'AllMyKVM 終端機',
       serial: 'Serial Port 終端機',
       serialPort: 'Serial Port',
       serialPortPlaceholder: '請輸入 Serial Port',
@@ -119,14 +119,14 @@ const zh_tw = {
     settings: {
       title: '設定',
       about: {
-        title: '關於 NanoKVM',
+        title: '關於 AllMyKVM',
         information: '資訊',
         ip: 'IP',
         mdns: 'mDNS',
         application: '應用程式版本',
-        applicationTip: 'NanoKVM 網頁程式版本',
+        applicationTip: 'AllMyKVM 網頁程式版本',
         image: '映像版本',
-        imageTip: 'NanoKVM 系统镜像版本',
+        imageTip: 'AllMyKVM 系统镜像版本',
         deviceKey: '設備序號',
         community: '社群'
       },
@@ -180,8 +180,8 @@ const zh_tw = {
         download: '下載',
         package: '安裝包',
         unzip: '並解壓縮它',
-        upTailscale: '將 Tailscale 上傳到 NanoKVM 目錄 /usr/bin/',
-        upTailscaled: '將 Tailscale 上傳到 NanoKVM 目錄 /usr/sbin/',
+        upTailscale: '將 Tailscale 上傳到 AllMyKVM 目錄 /usr/bin/',
+        upTailscaled: '將 Tailscale 上傳到 AllMyKVM 目錄 /usr/sbin/',
         refresh: '重新整理頁面',
         notLogin: '設備尚未綁定。請登入並將該裝置綁定到您的帳戶。',
         urlPeriod: '此網址有效期限為 10 分鐘',

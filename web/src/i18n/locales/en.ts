@@ -40,7 +40,7 @@ const en = {
       title: 'Smart Assistant',
       tips: {
         intro:
-          'Smart Assistant is an experimental feature of NanoKVM that allows you to experience using a Vision-Language Model (VLM) for automated computer operations, often called "Computer Use."\nBefore using this feature, please set the video mode to MJPEG transfer and your screen resolution to 720p or lower.\nThe Smart Assistant currently relies on an external VLM model service, which requires you to provide the corresponding model server address and API key. \nThis means the model server you specify will receive screenshots of your computer screen, and you may incur related token fees. \nYou can also set up your own VLM model server on your local network to avoid these issues.',
+          'Smart Assistant is an experimental feature of AllMyKVM that allows you to experience using a Vision-Language Model (VLM) for automated computer operations, often called "Computer Use."\nBefore using this feature, please set the video mode to MJPEG transfer and your screen resolution to 720p or lower.\nThe Smart Assistant currently relies on an external VLM model service, which requires you to provide the corresponding model server address and API key. \nThis means the model server you specify will receive screenshots of your computer screen, and you may incur related token fees. \nYou can also set up your own VLM model server on your local network to avoid these issues.',
         content:
           "Large models still have an unpredictable risk of hallucinations and limited operational capabilities, which may lead to unintended actions that could damage your computer's data. You must be aware of this risk. While the Smart Assistant is operating, you must monitor its actions and be ready to interrupt any potentially risky operations at any time!\nClicking the button below will open the Smart Assistant in a new window, and by doing so, you acknowledge and accept the risks mentioned above.\nFor security reasons, this service is currently limited to a single user. It automatically shutdown service when the page is closed, requiring you to click the button again to start a new session.",
         contribute:
@@ -52,8 +52,8 @@ const en = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please go to the device to check the network status of NanoKVM.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please go to the device to check the network status of AllMyKVM.',
       failed: 'Operation failed, please try again.',
       invalidMode:
         'The current mode does not support network setup. Please go to your device and enable Wi-Fi configuration mode.',
@@ -178,7 +178,7 @@ const en = {
       resetHid: 'Reset HID',
       hidOnly: {
         title: 'HID-Only mode',
-        desc: "If your mouse and keyboard stop responding and resetting HID doesn't help, it could be a compatibility issue between the NanoKVM and the device. Try to enable HID-Only mode for better compatibility.",
+        desc: "If your mouse and keyboard stop responding and resetting HID doesn't help, it could be a compatibility issue between the AllMyKVM and the device. Try to enable HID-Only mode for better compatibility.",
         tip1: 'Enabling HID-Only mode will unmount the virtual U-disk and virtual network',
         tip2: 'In HID-Only mode, image mounting is disabled',
         enable: 'Enable HID-Only mode',
@@ -225,7 +225,7 @@ const en = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'NanoKVM Terminal',
+      nanokvm: 'AllMyKVM Terminal',
       serial: 'Serial Port Terminal',
       serialPort: 'Serial Port',
       serialPortPlaceholder: 'Please enter the serial port',
@@ -271,16 +271,16 @@ const en = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'About NanoKVM',
+        title: 'About AllMyKVM',
         information: 'Information',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Application Version',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         arch: 'Arch',
         device_number: 'Device Number',
         image: 'Image Version',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Device Key',
         community: 'Community',
         hostname: 'Hostname',
@@ -457,7 +457,7 @@ const en = {
         diskDesc: 'Mount virtual U-disk on the remote host',
         emmc: {
           warning: 'Warning',
-          tip1: "Mounting the eMMC for the first time will wipe all data in the NanoKVM's /data directory. Please ensure you have a backup before proceeding.",
+          tip1: "Mounting the eMMC for the first time will wipe all data in the AllMyKVM's /data directory. Please ensure you have a backup before proceeding.",
           tip2: 'Do you want to continue?'
         },
         network: 'Virtual Network',
@@ -468,7 +468,7 @@ const en = {
           'Due to USB endpoint limitations, enabling the Virtual Mic will disable the USB Secondary Screen.\n' +
           'And it is recommended to disable this feature during BIOS operations to ensure optimal compatibility.',
         reboot: 'Reboot',
-        rebootDesc: 'Are you sure you want to reboot NanoKVM?',
+        rebootDesc: 'Are you sure you want to reboot AllMyKVM?',
         datetime: {
           timezone: 'Time zone',
           datetime: 'Datetime',
@@ -527,8 +527,8 @@ const en = {
         download: 'Download the',
         package: 'installation package',
         unzip: 'and unzip it',
-        upTailscale: 'Upload tailscale to NanoKVM directory /usr/bin/',
-        upTailscaled: 'Upload tailscaled to NanoKVM directory /usr/sbin/',
+        upTailscale: 'Upload tailscale to AllMyKVM directory /usr/bin/',
+        upTailscaled: 'Upload tailscaled to AllMyKVM directory /usr/sbin/',
         refresh: 'Refresh current page',
         notRunning: 'Tailscale is not running. Please start it to continue.',
         run: 'Start',
@@ -581,15 +581,15 @@ const en = {
         cancelBtn: 'No'
       },
       kvmadmin: {
-        title: 'NanoKVM Admin',
-        description: 'Batch management of NanoKVM devices',
+        title: 'AllMyKVM Admin',
+        description: 'Batch management of AllMyKVM devices',
         tip: 'This feature uses the mDNS protocol. Please make sure the mDNS is enabled on your device.',
         install: 'Install',
         start: 'Run',
         visit: 'Open',
         uninstall: 'Uninstall',
         attention: 'Attention',
-        confirmUninstall: 'Are you sure to uninstall NanoKVM Admin?',
+        confirmUninstall: 'Are you sure to uninstall AllMyKVM Admin?',
         clearData: 'This operation will delete all saved data!',
         installFailed: 'Install failed. Please try again.',
         startFailed: 'Service startup failed. Please try again.',
