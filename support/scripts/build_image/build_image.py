@@ -86,6 +86,19 @@ def replace_axp(axp_file, replacements, output=None):
         run_chroot_commands(mount_point=mount_point, commands=["touch /var/lib/misc/udhcpd.usb0.leases"])
         run_chroot_commands(mount_point=mount_point, commands=["chmod 644 /var/lib/misc/udhcpd.usb0.leases"])
 
+        # Enable USB virtual-network internet sharing at boot: the overlay ships
+        # /usr/local/bin/usbnet-share.sh and usbnet-share.service; wire the
+        # multi-user.target wants symlink directly (offline chroot has no dbus for
+        # `systemctl enable`). The unit self-guards on the virtual-network flag,
+        # so it no-ops unless the network is on. Matches the wants-symlink pattern
+        # the service-disable lines above use.
+        run_chroot_commands(mount_point=mount_point, commands=["chmod +x /usr/local/bin/usbnet-share.sh"])
+        run_chroot_commands(mount_point=mount_point, commands=[
+            "mkdir -p /etc/systemd/system/multi-user.target.wants && "
+            "ln -sf /etc/systemd/system/usbnet-share.service "
+            "/etc/systemd/system/multi-user.target.wants/usbnet-share.service"
+        ])
+
         run_chroot_commands(mount_point=mount_point, commands=["sync"])
     finally:
         print("[+] Cleaning up mounts...")

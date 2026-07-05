@@ -1,0 +1,17 @@
+[Unit]
+Description=USB virtual-network internet sharing (usb0 -> uplink NAT)
+Documentation=https://github.com/mrjeeves/NanoKVM-Pro
+# Wait for an uplink so the masquerade lands on a real route. The script is
+# best-effort and self-guards on the virtual-network flag, so an early or absent
+# uplink is harmless; the web UI's Virtual Network toggle re-applies it anyway.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usbnet-share.sh start
+ExecStop=/usr/local/bin/usbnet-share.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

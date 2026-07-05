@@ -29,6 +29,10 @@ const (
 const (
 	scriptUsbDev    = "/kvmapp/scripts/usbdev.sh"
 	scriptMountEmmc = "/kvmcomm/scripts/mount_emmc.py"
+	// scriptUsbNet shares the KVM's uplink internet with the USB-tethered host
+	// (usb0 → uplink NAT). Shipped by the image overlay; best-effort (always
+	// exits 0), so chaining it onto a toggle can't fail the toggle.
+	scriptUsbNet = "/usr/local/bin/usbnet-share.sh"
 )
 
 const (
@@ -118,17 +122,29 @@ func resolveDeviceCommands(device, diskType string) ([]string, error) {
 }
 
 func getNetworkCommands() []string {
+	// isVirtualNetworkMounted reflects the CURRENT (pre-toggle) gadget state, so
+	// "not mounted" means this call is turning the network ON.
+	enabling := !isVirtualNetworkMounted()
+
 	cmd := []string{
 		scriptUsbDev + " stop",
 	}
 
-	if !isVirtualNetworkMounted() {
+	if enabling {
 		cmd = append(cmd, "touch "+virtualNetwork)
 	} else {
 		cmd = append(cmd, "rm -rf "+virtualNetwork)
 	}
 
 	cmd = append(cmd, scriptUsbDev+" start")
+
+	// Bring internet sharing up/down with the gadget so the tether extends the
+	// host's connectivity instead of black-holing its default route.
+	if enabling {
+		cmd = append(cmd, scriptUsbNet+" start")
+	} else {
+		cmd = append(cmd, scriptUsbNet+" stop")
+	}
 	return cmd
 }
 
