@@ -30,8 +30,8 @@ const da = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please check the network status of NanoKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -92,7 +92,7 @@ const da = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'Terminal til NanoKVM',
+      nanokvm: 'Terminal til AllMyKVM',
       serial: 'Terminal til seriel port',
       serialPort: 'Serial port',
       serialPortPlaceholder: 'Angiv seriel port',
@@ -116,14 +116,14 @@ const da = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Om NanoKVM',
+        title: 'Om AllMyKVM',
         information: 'Information',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Program version',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Firmware version',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Enhedsnøgle',
         community: 'Fællesskab',
         pikvm: {

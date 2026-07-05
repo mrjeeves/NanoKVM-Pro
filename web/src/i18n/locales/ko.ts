@@ -30,8 +30,8 @@ const ko = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'NanoKVM Wi-Fi 설정',
-      success: 'NanoKVM의 네트워크 상태를 확인하고 새 IP 주소로 접속하세요.',
+      description: 'AllMyKVM Wi-Fi 설정',
+      success: 'AllMyKVM의 네트워크 상태를 확인하고 새 IP 주소로 접속하세요.',
       failed: '작업에 실패했습니다. 다시 시도하세요.',
       confirmBtn: '확인',
       finishBtn: '완료'
@@ -93,7 +93,7 @@ const ko = {
     },
     terminal: {
       title: '터미널',
-      nanokvm: 'NanoKVM 터미널',
+      nanokvm: 'AllMyKVM 터미널',
       serial: '시리얼 포트 터미널',
       serialPort: '시리얼 포트',
       serialPortPlaceholder: '시리얼 포트를 입력하세요',
@@ -123,14 +123,14 @@ const ko = {
     settings: {
       title: '설정',
       about: {
-        title: 'NanoKVM 정보',
+        title: 'AllMyKVM 정보',
         information: '정보',
         ip: 'IP',
         mdns: 'mDNS',
         application: '펌웨어 버전',
-        applicationTip: 'NanoKVM 웹 애플리케이션 버전',
+        applicationTip: 'AllMyKVM 웹 애플리케이션 버전',
         image: '이미지 버전',
-        imageTip: 'NanoKVM 시스템 이미지 버전',
+        imageTip: 'AllMyKVM 시스템 이미지 버전',
         deviceKey: '장치 키',
         community: '커뮤니티',
         pikvm: {
@@ -194,8 +194,8 @@ const ko = {
         download: '다운로드 중 :',
         package: '패키지 설치',
         unzip: '압축 해제',
-        upTailscale: 'tailscale을 NanoKVM 의 다음 경로에 업로드 했습니다. : /usr/bin/',
-        upTailscaled: 'tailscaled을 NanoKVM 의 다음 경로에 업로드 했습니다. :  /usr/sbin/',
+        upTailscale: 'tailscale을 AllMyKVM 의 다음 경로에 업로드 했습니다. : /usr/bin/',
+        upTailscaled: 'tailscaled을 AllMyKVM 의 다음 경로에 업로드 했습니다. :  /usr/sbin/',
         refresh: '현재 페이지 새로고침',
         notLogin: '이 기기는 현재 연동 되지 않았습니다. 로그인해서 계정에 이 장치를 연동하세요.',
         urlPeriod: '이 주소는 10분간 유효합니다.',

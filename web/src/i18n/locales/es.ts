@@ -31,8 +31,8 @@ const en = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please check the network status of NanoKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -94,7 +94,7 @@ const en = {
     },
     terminal: {
       title: 'Consola',
-      nanokvm: 'Consola del NanoKVM',
+      nanokvm: 'Consola del AllMyKVM',
       serial: 'Consola del Puerto Serie',
       serialPort: 'Puerto Serie',
       serialPortPlaceholder: 'Por favor, introduce el puerto serie',
@@ -118,14 +118,14 @@ const en = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Sobre NanoKVM',
+        title: 'Sobre AllMyKVM',
         information: 'Información',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Versión de la aplicación',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Versión de la imagen',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Clave del dispositivo',
         community: 'Comunidad',
         pikvm: {
@@ -186,8 +186,8 @@ const en = {
         download: 'Descargar el',
         package: 'paquete de instalación',
         unzip: 'y descomprimirlo',
-        upTailscale: 'Sube tailscale al directorio /usr/bin/ del NanoKVM',
-        upTailscaled: 'Sube tailscaled al directorio /usr/sbin/ del NanoKVM',
+        upTailscale: 'Sube tailscale al directorio /usr/bin/ del AllMyKVM',
+        upTailscaled: 'Sube tailscaled al directorio /usr/sbin/ del AllMyKVM',
         refresh: 'Actualizar la página actual',
         notLogin:
           'El dispositivo aún no ha sido vinculado. Por favor, inicia sesión y vincula este dispositivo a tu cuenta.',

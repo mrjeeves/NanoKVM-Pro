@@ -31,8 +31,8 @@ const nb = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for NanoKVM',
-      success: 'Please check the network status of NanoKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for AllMyKVM',
+      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -93,7 +93,7 @@ const nb = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'NanoKVM',
+      nanokvm: 'AllMyKVM',
       serial: 'Seriell port',
       serialPort: 'Seriell port',
       serialPortPlaceholder: 'Vennligst angi den serielle porten',
@@ -117,14 +117,14 @@ const nb = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Om NanoKVM',
+        title: 'Om AllMyKVM',
         information: 'Informasjon',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Applikasjonsversjon',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Arkivfil-versjon',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Enhetsnøkkel',
         community: 'Fellesskap'
       },
@@ -173,8 +173,8 @@ const nb = {
         download: 'Last ned',
         package: 'installasjonspakken',
         unzip: 'og pakk den ut',
-        upTailscale: 'Last opp Tailscale til NanoKVM-enhetens mappe /usr/bin/',
-        upTailscaled: 'Last opp tailscaled til NanoKVM-enhetens mappe /usr/sbin/',
+        upTailscale: 'Last opp Tailscale til AllMyKVM-enhetens mappe /usr/bin/',
+        upTailscaled: 'Last opp tailscaled til AllMyKVM-enhetens mappe /usr/sbin/',
         refresh: 'Last inn denne siden på nytt',
         notLogin:
           'Denne enheten er ikke knyttet til din konto enda. Vennligst logg inn og knytt den til kontoen din..',

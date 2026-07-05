@@ -85,7 +85,7 @@ const pl = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'Terminal NanoKVM',
+      nanokvm: 'Terminal AllMyKVM',
       serial: 'Terminal portu szeregowego',
       serialPort: 'Port szeregowy',
       serialPortPlaceholder: 'Wprowadź port szeregowy',
@@ -119,14 +119,14 @@ const pl = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'NanoKVM - informacje',
+        title: 'AllMyKVM - informacje',
         information: 'Informacje o systemie',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Wersja oprogramowania',
-        applicationTip: 'NanoKVM web application version',
+        applicationTip: 'AllMyKVM web application version',
         image: 'Wersja obrazu',
-        imageTip: 'NanoKVM system image version',
+        imageTip: 'AllMyKVM system image version',
         deviceKey: 'Klucz urządzenia',
         community: 'Społeczność'
       },
@@ -175,8 +175,8 @@ const pl = {
         download: 'Pobierz',
         package: 'pakiet instalacyjny',
         unzip: 'i wypakuj pliki',
-        upTailscale: 'Prześlij tailscale do NanoKVM w katalogu /usr/bin/',
-        upTailscaled: 'Prześlij tailscaled do NanoKVM w katalogu /usr/sbin/',
+        upTailscale: 'Prześlij tailscale do AllMyKVM w katalogu /usr/bin/',
+        upTailscaled: 'Prześlij tailscaled do AllMyKVM w katalogu /usr/sbin/',
         refresh: 'Odśwież obecną stronę',
         notLogin:
           'Urządzenie nie zostało jeszcze powiązane. Zaloguj się i powiąż to urządzenie ze swoim kontem.',
