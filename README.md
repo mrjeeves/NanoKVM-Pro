@@ -1,4 +1,19 @@
-# NanoKVM-Pro
+# NanoKVM-Pro · AllMyKVM edition
+
+## This fork: AllMyKVM — an AllMyStuff mesh appliance
+
+This fork of [sipeed/NanoKVM-Pro](https://github.com/sipeed/NanoKVM-Pro) turns the device into **AllMyKVM**, a first-class appliance in the [AllMyStuff](https://allmystuff.works) ecosystem. Everything below this section is upstream Sipeed documentation and still applies.
+
+- **AllMyStuff branding** — web UI renamed AllMyKVM in every locale, restyled in AllMyStuff's design language (deep-violet dark theme, `#f11ea1` magenta accent, Inter font), with the AllMyStuff app icon as the favicon.
+- **Pure-Go mesh bridge** (`server/service/mesh/`) paired with a bundled [MyOwnMesh](https://myownmesh.net) daemon (Rust, pinned at `v0.2.30` in `.myownmesh-rev`; aarch64-musl build, run as a systemd `myownmesh.service` unit from `packaging/systemd/`).
+- **LAN-first claiming** — an unclaimed device advertises on the mDNS-only `allmystuff-local-claim-v1` rendezvous mesh (no relays, no wall clock needed — works pre-NTP), so a fresh KVM auto-appears in the claim sheet of any AllMyStuff app on the same LAN; WAN claiming stays off unless `publicClaims: true`.
+- **Zero-login access from anywhere** — the web UI tunnels over the mesh "sites" plane (no port forwarding or VPN), and mesh roster membership *is* the authentication for mesh viewers.
+- **Full KVM-node lifecycle** — presence advertising (NodeProfile with `kvm`/`sites` capability tags), fleet membership, attach/detach to the machine it controls (renames itself `KVM-<label>`), owner-curated mesh membership, remote restart, and unclaim (factory-reset of the mesh identity).
+- **usbnet internet sharing** — the KVM NATs its own uplink to the USB-tethered host (`usbnet-share.service`).
+
+Details in [docs/MESH.md](docs/MESH.md) · companion app: [allmystuff.works](https://allmystuff.works) · mesh tech: [myownmesh.net](https://myownmesh.net)
+
+---
 
 > ## Code Availability
 >
