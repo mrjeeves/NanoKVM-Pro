@@ -23,28 +23,67 @@ import (
 // but H.265 end-to-end over the mesh is unverified, so ReadH265/ReadAudio are
 // deliberately never used here — the pump only ever pulls ReadH264 access units,
 // the very bytes the WebRTC path feeds Pion.
-type videoSource struct{}
+// videoSource carries the viewer's requested longest-edge cap so the quality
+// slider can downscale the capture BELOW the HDMI source resolution. It can
+// never exceed it — a KVM captures its HDMI input and can't upscale — so the
+// top slider stops simply stream the source's native resolution.
+type videoSource struct {
+	mu      sync.Mutex
+	maxEdge uint32 // 0 = native (the physical HDMI source resolution)
+}
 
 // NewVideoSource builds the on-device native display encoder.
-func NewVideoSource() mesh.VideoSource { return videoSource{} }
+func NewVideoSource() mesh.VideoSource { return &videoSource{} }
 
 // Params snapshots the live capture geometry (the same fields the WebRTC pump
-// reads from common.GetScreen between frames, so a Tune reshapes both streams).
+// reads from common.GetScreen between frames, so a Tune reshapes both streams),
+// with the viewer's max-edge cap applied so the slider actually downscales.
 // Pro's Screen.FPS is a uint8 (NanoKVM's was an int), hence the int() here.
-func (videoSource) Params() mesh.VideoParams {
+func (v *videoSource) Params() mesh.VideoParams {
 	s := common.GetScreen()
+	w, h := int(s.Width), int(s.Height)
+	v.mu.Lock()
+	cap := v.maxEdge
+	v.mu.Unlock()
+	if cap > 0 {
+		w, h = capEdge(w, h, int(cap))
+	}
 	return mesh.VideoParams{
-		Width:   int(s.Width),
-		Height:  int(s.Height),
+		Width:   w,
+		Height:  h,
 		FPS:     int(s.FPS),
 		BitRate: int(s.BitRate),
 	}
 }
 
 // ReadH264 returns one Annex-B access unit — the very bytes the WebRTC path
-// feeds Pion, no re-encode.
-func (videoSource) ReadH264(width, height, bitrate int) ([]byte, int) {
+// feeds Pion, no re-encode. The (width,height) are the capped capture dims, so
+// libkvm scales the HDMI input to the viewer's requested resolution.
+func (v *videoSource) ReadH264(width, height, bitrate int) ([]byte, int) {
 	return common.GetKvmVision().ReadH264(uint16(width), uint16(height), uint16(bitrate))
+}
+
+// capEdge scales (w,h) down so the longest edge is ≤ maxEdge, preserving aspect
+// ratio and keeping both dimensions even (H.264 requires even). It never
+// upscales — a KVM can only downscale its HDMI input.
+func capEdge(w, h, maxEdge int) (int, int) {
+	longest := w
+	if h > longest {
+		longest = h
+	}
+	if maxEdge <= 0 || longest <= maxEdge {
+		return w, h
+	}
+	scale := float64(maxEdge) / float64(longest)
+	nw := int(float64(w)*scale) &^ 1
+	nh := int(float64(h)*scale) &^ 1
+	if nw < 2 {
+		nw = 2
+	}
+	if nh < 2 {
+		nh = 2
+	}
+	return nw, nh
 }
 
 // SetFps requests a capture frame rate. Unlike NanoKVM (which had no real
@@ -52,23 +91,27 @@ func (videoSource) ReadH264(width, height, bitrate int) ([]byte, int) {
 // encoder directly: common.GetKvmVision().SetFps applies it to libkvm, and the
 // shared Screen.FPS is updated to reflect it only on success — mirroring the web
 // SetFps handler (service/stream/service.go).
-func (videoSource) SetFps(fps int) {
+func (v *videoSource) SetFps(fps int) {
 	setEncoderFps(fps)
 }
 
 // Tune applies a viewer's constraints to the shared screen params + encoder
 // (best-effort; nil fields are left unchanged).
 //
-//   - max_edge: a no-op on the Pro. Screen.Width/Height reflect the PHYSICAL HDMI
-//     source (read from /proc/lt6911_info), and Pro's common has neither a
-//     ResolutionMap nor a SetScreen("resolution", …) to override it — capture
-//     resolution follows the input, so max_edge is advisory only.
+//   - max_edge: the longest-edge cap. Screen.Width/Height reflect the PHYSICAL
+//     HDMI source (read from /proc/lt6911_info); Params() scales the capture down
+//     to this cap (never above the source) and hands ReadH264 the capped dims, so
+//     libkvm downscales — the slider's resolution stops now actually take effect.
 //   - bitrate: mirrors the web SetQuality rule (service/stream/service.go) —
 //     a value ≤100 is a JPEG quality, anything larger is a video bitrate in kbps;
 //     ReadH264 re-reads Screen.BitRate each frame, so no encoder call is needed.
 //   - fps: driven through the encoder like SetFps.
-func (videoSource) Tune(maxEdge, bitrate, fps *uint32) {
-	_ = maxEdge // see doc comment: capture resolution tracks the HDMI source
+func (v *videoSource) Tune(maxEdge, bitrate, fps *uint32) {
+	if maxEdge != nil {
+		v.mu.Lock()
+		v.maxEdge = *maxEdge
+		v.mu.Unlock()
+	}
 	if bitrate != nil {
 		applyBitrateOrQuality(*bitrate)
 	}
@@ -80,13 +123,13 @@ func (videoSource) Tune(maxEdge, bitrate, fps *uint32) {
 // ForceIDR is a best-effort no-op: libkvm exposes no "keyframe now" primitive,
 // but it re-emits SPS+PPS+IDR at every GOP boundary (screen.GOP frames, default
 // 50 on the Pro), so a refreshing viewer recovers on the next GOP.
-func (videoSource) ForceIDR() {}
+func (v *videoSource) ForceIDR() {}
 
 // Prepare puts the shared libkvm encoder into H.264 WebRTC capture mode — the
 // same thing the browser path does in AddClient. Without it, a prior MJPEG or
 // h264-direct session could leave the encoder in a mode where ReadH264 returns
 // nothing.
-func (videoSource) Prepare() {
+func (v *videoSource) Prepare() {
 	common.GetKvmVision().SetStreamType(common.STREAM_TYPE_H264_WEBRTC)
 }
 
@@ -94,7 +137,7 @@ func (videoSource) Prepare() {
 // next available access unit (or nothing), so — exactly like sendVideoStream —
 // the pump polls at 120 Hz to take every unit in order. Polling at the requested
 // fps instead would skip units and hand the viewer undecodable P-frames.
-func (videoSource) CaptureInterval() time.Duration {
+func (v *videoSource) CaptureInterval() time.Duration {
 	return time.Second / 120
 }
 
