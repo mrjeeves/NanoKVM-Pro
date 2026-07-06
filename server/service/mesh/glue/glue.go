@@ -120,10 +120,25 @@ func (v *videoSource) Tune(maxEdge, bitrate, fps *uint32) {
 	}
 }
 
-// ForceIDR is a best-effort no-op: libkvm exposes no "keyframe now" primitive,
-// but it re-emits SPS+PPS+IDR at every GOP boundary (screen.GOP frames, default
-// 50 on the Pro), so a refreshing viewer recovers on the next GOP.
-func (v *videoSource) ForceIDR() {}
+// ForceIDR asks the encoder for a fresh keyframe by (re)applying the GOP.
+// libkvm has no explicit "keyframe now" call, but kvmv_set_gop restarts the
+// encoder's GOP structure, so the next access unit is a fresh SPS+PPS+IDR AND a
+// periodic-IDR cadence is established for the rest of the session.
+//
+// This is essential on a re-offer (a window transition re-homes the stream): the
+// PUSH encoder free-runs and, mid-stream, hands back only P-frames. The native
+// path never set a GOP — only the web /stream/gop handler did — so the
+// firmware-default cadence can leave the pump's keyframe gate waiting far past a
+// usable GOP boundary (observed: 600+ deltas, no IDR), and the viewer stays
+// black. Setting it here both forces the keyframe and makes subsequent mid-GOP
+// (re)offers recover within one GOP.
+func (v *videoSource) ForceIDR() {
+	gop := common.GetScreen().GOP
+	if gop < 1 {
+		gop = 50
+	}
+	common.GetKvmVision().SetGop(gop)
+}
 
 // Prepare puts the shared libkvm encoder into H.264 WebRTC capture mode — the
 // same thing the browser path does in AddClient. Without it, a prior MJPEG or
