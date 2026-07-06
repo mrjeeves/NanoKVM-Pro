@@ -9,6 +9,7 @@ package glue
 import (
 	"math"
 	"sync"
+	"time"
 
 	"NanoKVM-Server/common"
 	"NanoKVM-Server/service/hid"
@@ -80,6 +81,22 @@ func (videoSource) Tune(maxEdge, bitrate, fps *uint32) {
 // but it re-emits SPS+PPS+IDR at every GOP boundary (screen.GOP frames, default
 // 50 on the Pro), so a refreshing viewer recovers on the next GOP.
 func (videoSource) ForceIDR() {}
+
+// Prepare puts the shared libkvm encoder into H.264 WebRTC capture mode — the
+// same thing the browser path does in AddClient. Without it, a prior MJPEG or
+// h264-direct session could leave the encoder in a mode where ReadH264 returns
+// nothing.
+func (videoSource) Prepare() {
+	common.GetKvmVision().SetStreamType(common.STREAM_TYPE_H264_WEBRTC)
+}
+
+// CaptureInterval drains the PUSH-driven HDMI encoder fast: ReadH264 returns the
+// next available access unit (or nothing), so — exactly like sendVideoStream —
+// the pump polls at 120 Hz to take every unit in order. Polling at the requested
+// fps instead would skip units and hand the viewer undecodable P-frames.
+func (videoSource) CaptureInterval() time.Duration {
+	return time.Second / 120
+}
 
 // setEncoderFps clamps to the encoder's accepted range (0..120, matching the web
 // SetFps handler) and applies it, updating Screen.FPS only when libkvm accepts.
