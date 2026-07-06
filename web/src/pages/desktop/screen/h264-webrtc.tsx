@@ -66,7 +66,7 @@ const createCandidateHandler = (
   };
 };
 
-export const H264Webrtc = () => {
+export const H264Webrtc = ({ onFailure }: { onFailure?: () => void }) => {
   const videoParameters = useAtomValue(videoParametersAtom);
   const mouseStyle = useAtomValue(mouseStyleAtom);
   const setVideoStatus = useSetAtom(videoStatusAtom);
@@ -91,27 +91,77 @@ export const H264Webrtc = () => {
   const micStreamRef = useRef<MediaStream | null>(null);
   const micTrackRef = useRef<MediaStreamTrack | null>(null);
 
+  // Keep the latest onFailure reachable from the connection effect without
+  // adding it to the effect deps (which would tear down and reconnect the WS).
+  const onFailureRef = useRef(onFailure);
+  onFailureRef.current = onFailure;
+
   useEffect(() => {
     const ws = api.webrtcH264();
+    const videoElement = videoRef.current;
 
-    const iceServers = [{ urls: ['stun:stun.l.google.com:19302'] }];
-    const video = new RTCPeerConnection({ iceServers });
-    const audio = new RTCPeerConnection({ iceServers });
+    let video: RTCPeerConnection | null = null;
+    let audio: RTCPeerConnection | null = null;
+    let started = false;
+    let disposed = false;
 
-    const handleVideoAnswer = createAnswerHandler(
-      video,
-      videoOfferSent,
-      videoIceCandidates,
-      'video'
-    );
-    const handleAudioAnswer = createAnswerHandler(
-      audio,
-      audioOfferSent,
-      audioIceCandidates,
-      'audio'
-    );
-    const handleVideoCandidate = createCandidateHandler(video, videoIceCandidates, 'video');
-    const handleAudioCandidate = createCandidateHandler(audio, audioIceCandidates, 'audio');
+    // Signaling handlers are created once the peer connections exist (i.e. once
+    // the ICE servers arrive), so they're null until then.
+    let handleVideoAnswer: ((data: any) => void) | null = null;
+    let handleAudioAnswer: ((data: any) => void) | null = null;
+    let handleVideoCandidate: ((data: any) => void) | null = null;
+    let handleAudioCandidate: ((data: any) => void) | null = null;
+
+    // --- Autodrop-to-MJPEG bookkeeping ---
+    // Fire onFailure at most once when the WebRTC media can't come up so the
+    // parent can swap in MJPEG. All timers are cleared on unmount.
+    let failureFired = false;
+    let connectWatchdog: ReturnType<typeof setTimeout> | null = null;
+    let disconnectGrace: ReturnType<typeof setTimeout> | null = null;
+    let iceServersFallback: ReturnType<typeof setTimeout> | null = null;
+    let mediaPlaying = false;
+
+    const fireFailure = () => {
+      if (failureFired || disposed) {
+        return;
+      }
+      failureFired = true;
+      onFailureRef.current?.();
+    };
+
+    const clearDisconnectGrace = () => {
+      if (disconnectGrace) {
+        clearTimeout(disconnectGrace);
+        disconnectGrace = null;
+      }
+    };
+
+    // The <video> firing 'playing' is the definitive "media is up" signal: it
+    // cancels the connect watchdog and any pending disconnect grace.
+    const onMediaPlaying = () => {
+      mediaPlaying = true;
+      if (connectWatchdog) {
+        clearTimeout(connectWatchdog);
+        connectWatchdog = null;
+      }
+      clearDisconnectGrace();
+    };
+    if (videoElement) {
+      videoElement.addEventListener('playing', onMediaPlaying);
+    }
+
+    const sendMsg = (event: string, data: string) => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      try {
+        const message: WebRTCMessage = { event, data };
+        ws.send(JSON.stringify(message));
+      } catch (err) {
+        console.error('Error sending event:', err);
+      }
+    };
 
     const handleVideoStatus = (data: number) => {
       switch (data) {
@@ -133,102 +183,166 @@ export const H264Webrtc = () => {
       }
     };
 
-    const sendMsg = (event: string, data: string) => {
-      if (ws.readyState !== WebSocket.OPEN) {
+    // Defer creating BOTH peer connections until we know which ICE servers to
+    // use. The server ships them (venue union first) in an "ice-servers"
+    // message right after connect, so a remote viewer reaching this UI through
+    // AllMyStuff's sites proxy gets relays it can actually reach — instead of a
+    // hardcoded public STUN it can't. A fallback (see ws.onopen) starts with an
+    // empty config if that message never arrives, so we still attempt.
+    const startConnections = (iceServers: RTCIceServer[]) => {
+      if (started || disposed) {
         return;
       }
+      started = true;
 
-      try {
-        const message: WebRTCMessage = { event, data };
-        ws.send(JSON.stringify(message));
-      } catch (err) {
-        console.error('Error sending event:', err);
-      }
-    };
+      const videoPeer = new RTCPeerConnection({ iceServers });
+      const audioPeer = new RTCPeerConnection({ iceServers });
+      video = videoPeer;
+      audio = audioPeer;
 
-    // --- Init Video ---
-    video.onnegotiationneeded = async () => {
-      if (videoOfferSent.current || video.signalingState !== 'stable') {
-        console.log('Skipping video negotiation - Waiting for answer or state unstable');
-        return;
-      }
+      handleVideoAnswer = createAnswerHandler(videoPeer, videoOfferSent, videoIceCandidates, 'video');
+      handleAudioAnswer = createAnswerHandler(audioPeer, audioOfferSent, audioIceCandidates, 'audio');
+      handleVideoCandidate = createCandidateHandler(videoPeer, videoIceCandidates, 'video');
+      handleAudioCandidate = createCandidateHandler(audioPeer, audioIceCandidates, 'audio');
 
-      try {
-        videoOfferSent.current = true;
-        const offer = await video.createOffer({
-          offerToReceiveVideo: true,
-          offerToReceiveAudio: false
-        });
-
-        await video.setLocalDescription(offer);
-        sendMsg('video-offer', JSON.stringify(video.localDescription));
-      } catch (error) {
-        videoOfferSent.current = false;
-        console.error('Video negotiation failed:', error);
-      }
-    };
-
-    video.onconnectionstatechange = () => {
-      if (video.iceConnectionState === 'connected') {
-        setIsLoading(false);
-      }
-    };
-
-    video.ontrack = (event) => {
-      if (videoRef.current && event.track.kind === 'video') {
-        videoRef.current.srcObject = new MediaStream([event.track]);
-      }
-    };
-
-    // --- Init Audio ---
-    audio.onnegotiationneeded = async () => {
-      if (audioOfferSent.current || audio.signalingState !== 'stable') {
-        console.log('Skipping audio negotiation - Waiting for answer or state unstable');
-        return;
-      }
-
-      try {
-        audioOfferSent.current = true;
-        const offer = await audio.createOffer({
-          offerToReceiveVideo: false,
-          offerToReceiveAudio: true
-        });
-
-        await audio.setLocalDescription(offer);
-        sendMsg('audio-offer', JSON.stringify(audio.localDescription));
-      } catch (error) {
-        audioOfferSent.current = false;
-        console.error('Audio negotiation failed:', error);
-      }
-    };
-
-    audio.ontrack = (event) => {
-      if (audioRef.current && event.track.kind === 'audio') {
-        audioRef.current.srcObject = new MediaStream([event.track]);
-      }
-    };
-
-    // --- WebSocket Message Handling ---
-    ws.onopen = () => {
       videoOfferSent.current = false;
       audioOfferSent.current = false;
 
-      video.onicecandidate = (event) => {
+      // --- Init Video ---
+      videoPeer.onnegotiationneeded = async () => {
+        if (videoOfferSent.current || videoPeer.signalingState !== 'stable') {
+          console.log('Skipping video negotiation - Waiting for answer or state unstable');
+          return;
+        }
+
+        try {
+          videoOfferSent.current = true;
+          const offer = await videoPeer.createOffer({
+            offerToReceiveVideo: true,
+            offerToReceiveAudio: false
+          });
+
+          await videoPeer.setLocalDescription(offer);
+          sendMsg('video-offer', JSON.stringify(videoPeer.localDescription));
+        } catch (error) {
+          videoOfferSent.current = false;
+          console.error('Video negotiation failed:', error);
+        }
+      };
+
+      videoPeer.onconnectionstatechange = () => {
+        if (videoPeer.iceConnectionState === 'connected') {
+          setIsLoading(false);
+        }
+      };
+
+      videoPeer.oniceconnectionstatechange = () => {
+        switch (videoPeer.iceConnectionState) {
+          case 'connected':
+          case 'completed':
+            clearDisconnectGrace();
+            break;
+          case 'failed':
+            console.warn('WebRTC ICE failed — dropping to MJPEG');
+            fireFailure();
+            break;
+          case 'disconnected':
+            // A transient blip often recovers; only drop if it persists.
+            if (!disconnectGrace) {
+              disconnectGrace = setTimeout(() => {
+                disconnectGrace = null;
+                const state = videoPeer.iceConnectionState;
+                if (state === 'disconnected' || state === 'failed') {
+                  console.warn('WebRTC ICE stayed disconnected — dropping to MJPEG');
+                  fireFailure();
+                }
+              }, 5 * 1000);
+            }
+            break;
+          default:
+            break;
+        }
+      };
+
+      videoPeer.ontrack = (event) => {
+        if (videoRef.current && event.track.kind === 'video') {
+          videoRef.current.srcObject = new MediaStream([event.track]);
+        }
+      };
+
+      // --- Init Audio ---
+      audioPeer.onnegotiationneeded = async () => {
+        if (audioOfferSent.current || audioPeer.signalingState !== 'stable') {
+          console.log('Skipping audio negotiation - Waiting for answer or state unstable');
+          return;
+        }
+
+        try {
+          audioOfferSent.current = true;
+          const offer = await audioPeer.createOffer({
+            offerToReceiveVideo: false,
+            offerToReceiveAudio: true
+          });
+
+          await audioPeer.setLocalDescription(offer);
+          sendMsg('audio-offer', JSON.stringify(audioPeer.localDescription));
+        } catch (error) {
+          audioOfferSent.current = false;
+          console.error('Audio negotiation failed:', error);
+        }
+      };
+
+      audioPeer.ontrack = (event) => {
+        if (audioRef.current && event.track.kind === 'audio') {
+          audioRef.current.srcObject = new MediaStream([event.track]);
+        }
+      };
+
+      videoPeer.onicecandidate = (event) => {
         if (event.candidate) {
           sendMsg('video-candidate', JSON.stringify(event.candidate));
         }
       };
 
-      audio.onicecandidate = (event) => {
+      audioPeer.onicecandidate = (event) => {
         if (event.candidate) {
           sendMsg('audio-candidate', JSON.stringify(event.candidate));
         }
       };
 
-      video.addTransceiver('video', { direction: 'recvonly' });
-      audio.addTransceiver('audio', { direction: 'sendrecv' });
+      videoPeer.addTransceiver('video', { direction: 'recvonly' });
+      audioPeer.addTransceiver('audio', { direction: 'sendrecv' });
 
-      audioConnectionRef.current = audio;
+      audioConnectionRef.current = audioPeer;
+    };
+
+    // --- WebSocket Message Handling ---
+    ws.onopen = () => {
+      if (disposed) {
+        ws.close();
+        return;
+      }
+
+      videoOfferSent.current = false;
+      audioOfferSent.current = false;
+
+      // Fallback: if the server never sends ice-servers, still attempt with an
+      // empty config so Part B's autodrop can catch a hard failure.
+      iceServersFallback = setTimeout(() => {
+        if (!started) {
+          console.warn('No ice-servers from server — starting WebRTC with default config');
+          startConnections([]);
+        }
+      }, 3 * 1000);
+
+      // Connect watchdog: if <video> hasn't started playing within 10s of the
+      // socket opening, drop to MJPEG. onMediaPlaying cancels this.
+      connectWatchdog = setTimeout(() => {
+        if (!mediaPlaying) {
+          console.warn('WebRTC media did not start within 10s — dropping to MJPEG');
+          fireFailure();
+        }
+      }, 10 * 1000);
     };
 
     ws.onmessage = (event) => {
@@ -240,17 +354,20 @@ export const H264Webrtc = () => {
         if (!data) return;
 
         switch (msg.event) {
+          case 'ice-servers':
+            startConnections(Array.isArray(data) ? (data as RTCIceServer[]) : []);
+            break;
           case 'video-answer':
-            handleVideoAnswer(data);
+            handleVideoAnswer?.(data);
             break;
           case 'video-candidate':
-            handleVideoCandidate(data);
+            handleVideoCandidate?.(data);
             break;
           case 'audio-answer':
-            handleAudioAnswer(data);
+            handleAudioAnswer?.(data);
             break;
           case 'audio-candidate':
-            handleAudioCandidate(data);
+            handleAudioCandidate?.(data);
             break;
           case 'video-status':
             handleVideoStatus(Number(data));
@@ -274,12 +391,14 @@ export const H264Webrtc = () => {
     }, 10 * 1000);
 
     return () => {
+      disposed = true;
+
       if (ws.readyState === WebSocket.OPEN) {
         ws.close();
       }
 
-      video.close();
-      audio.close();
+      video?.close();
+      audio?.close();
 
       videoOfferSent.current = false;
       audioOfferSent.current = false;
@@ -288,6 +407,16 @@ export const H264Webrtc = () => {
 
       clearInterval(heartbeatTimer);
       clearTimeout(loadingTimer);
+      if (connectWatchdog) {
+        clearTimeout(connectWatchdog);
+      }
+      if (iceServersFallback) {
+        clearTimeout(iceServersFallback);
+      }
+      clearDisconnectGrace();
+      if (videoElement) {
+        videoElement.removeEventListener('playing', onMediaPlaying);
+      }
 
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach((track) => track.stop());

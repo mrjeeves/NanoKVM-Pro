@@ -1,0 +1,369 @@
+// Package glue wires the CGO-free mesh package to the KVM's on-device hardware:
+// a VideoSource over the libkvm H.264 encoder (common) and an InputSink over the
+// HID gadget (service/hid). It lives outside the mesh package precisely because
+// it imports CGO/libkvm and the HID gadget — the mesh package must build and
+// test on host amd64, so it reaches these only through the injected interfaces
+// this package implements.
+package glue
+
+import (
+	"math"
+	"sync"
+	"time"
+
+	"NanoKVM-Server/common"
+	"NanoKVM-Server/service/hid"
+	"NanoKVM-Server/service/mesh"
+)
+
+// ---- VideoSource ------------------------------------------------------------
+
+// videoSource adapts common.GetKvmVision()/common.GetScreen() to mesh.VideoSource.
+// The native path is PINNED to H.264: the Pro's encoder also does H.265/audio,
+// but H.265 end-to-end over the mesh is unverified, so ReadH265/ReadAudio are
+// deliberately never used here — the pump only ever pulls ReadH264 access units,
+// the very bytes the WebRTC path feeds Pion.
+// videoSource carries the viewer's requested longest-edge cap so the quality
+// slider can downscale the capture BELOW the HDMI source resolution. It can
+// never exceed it — a KVM captures its HDMI input and can't upscale — so the
+// top slider stops simply stream the source's native resolution.
+type videoSource struct {
+	mu      sync.Mutex
+	maxEdge uint32 // 0 = native (the physical HDMI source resolution)
+}
+
+// NewVideoSource builds the on-device native display encoder.
+func NewVideoSource() mesh.VideoSource { return &videoSource{} }
+
+// Params snapshots the live capture geometry (the same fields the WebRTC pump
+// reads from common.GetScreen between frames, so a Tune reshapes both streams),
+// with the viewer's max-edge cap applied so the slider actually downscales.
+// Pro's Screen.FPS is a uint8 (NanoKVM's was an int), hence the int() here.
+func (v *videoSource) Params() mesh.VideoParams {
+	s := common.GetScreen()
+	w, h := int(s.Width), int(s.Height)
+	v.mu.Lock()
+	cap := v.maxEdge
+	v.mu.Unlock()
+	if cap > 0 {
+		w, h = capEdge(w, h, int(cap))
+	}
+	return mesh.VideoParams{
+		Width:   w,
+		Height:  h,
+		FPS:     int(s.FPS),
+		BitRate: int(s.BitRate),
+	}
+}
+
+// ReadH264 returns one Annex-B access unit — the very bytes the WebRTC path
+// feeds Pion, no re-encode. The (width,height) are the capped capture dims, so
+// libkvm scales the HDMI input to the viewer's requested resolution.
+func (v *videoSource) ReadH264(width, height, bitrate int) ([]byte, int) {
+	return common.GetKvmVision().ReadH264(uint16(width), uint16(height), uint16(bitrate))
+}
+
+// capEdge scales (w,h) down so the longest edge is ≤ maxEdge, preserving aspect
+// ratio and keeping both dimensions even (H.264 requires even). It never
+// upscales — a KVM can only downscale its HDMI input.
+func capEdge(w, h, maxEdge int) (int, int) {
+	longest := w
+	if h > longest {
+		longest = h
+	}
+	if maxEdge <= 0 || longest <= maxEdge {
+		return w, h
+	}
+	scale := float64(maxEdge) / float64(longest)
+	nw := int(float64(w)*scale) &^ 1
+	nh := int(float64(h)*scale) &^ 1
+	if nw < 2 {
+		nw = 2
+	}
+	if nh < 2 {
+		nh = 2
+	}
+	return nw, nh
+}
+
+// SetFps requests a capture frame rate. Unlike NanoKVM (which had no real
+// encoder control and validated through common.SetScreen), the Pro drives the
+// encoder directly: common.GetKvmVision().SetFps applies it to libkvm, and the
+// shared Screen.FPS is updated to reflect it only on success — mirroring the web
+// SetFps handler (service/stream/service.go).
+func (v *videoSource) SetFps(fps int) {
+	setEncoderFps(fps)
+}
+
+// Tune applies a viewer's constraints to the shared screen params + encoder
+// (best-effort; nil fields are left unchanged).
+//
+//   - max_edge: the longest-edge cap. Screen.Width/Height reflect the PHYSICAL
+//     HDMI source (read from /proc/lt6911_info); Params() scales the capture down
+//     to this cap (never above the source) and hands ReadH264 the capped dims, so
+//     libkvm downscales — the slider's resolution stops now actually take effect.
+//   - bitrate: mirrors the web SetQuality rule (service/stream/service.go) —
+//     a value ≤100 is a JPEG quality, anything larger is a video bitrate in kbps;
+//     ReadH264 re-reads Screen.BitRate each frame, so no encoder call is needed.
+//   - fps: driven through the encoder like SetFps.
+func (v *videoSource) Tune(maxEdge, bitrate, fps *uint32) {
+	if maxEdge != nil {
+		v.mu.Lock()
+		v.maxEdge = *maxEdge
+		v.mu.Unlock()
+	}
+	if bitrate != nil {
+		applyBitrateOrQuality(*bitrate)
+	}
+	if fps != nil {
+		setEncoderFps(int(*fps))
+	}
+}
+
+// ForceIDR asks the encoder for a fresh keyframe by (re)applying the GOP.
+// libkvm has no explicit "keyframe now" call, but kvmv_set_gop restarts the
+// encoder's GOP structure, so the next access unit is a fresh SPS+PPS+IDR AND a
+// periodic-IDR cadence is established for the rest of the session.
+//
+// This is essential on a re-offer (a window transition re-homes the stream): the
+// PUSH encoder free-runs and, mid-stream, hands back only P-frames. The native
+// path never set a GOP — only the web /stream/gop handler did — so the
+// firmware-default cadence can leave the pump's keyframe gate waiting far past a
+// usable GOP boundary (observed: 600+ deltas, no IDR), and the viewer stays
+// black. Setting it here both forces the keyframe and makes subsequent mid-GOP
+// (re)offers recover within one GOP.
+func (v *videoSource) ForceIDR() {
+	gop := common.GetScreen().GOP
+	if gop < 1 {
+		gop = 50
+	}
+	common.GetKvmVision().SetGop(gop)
+}
+
+// Prepare puts the shared libkvm encoder into H.264 WebRTC capture mode — the
+// same thing the browser path does in AddClient. Without it, a prior MJPEG or
+// h264-direct session could leave the encoder in a mode where ReadH264 returns
+// nothing.
+func (v *videoSource) Prepare() {
+	common.GetKvmVision().SetStreamType(common.STREAM_TYPE_H264_WEBRTC)
+}
+
+// CaptureInterval drains the PUSH-driven HDMI encoder fast: ReadH264 returns the
+// next available access unit (or nothing), so — exactly like sendVideoStream —
+// the pump polls at 120 Hz to take every unit in order. Polling at the requested
+// fps instead would skip units and hand the viewer undecodable P-frames.
+func (v *videoSource) CaptureInterval() time.Duration {
+	return time.Second / 120
+}
+
+// setEncoderFps clamps to the encoder's accepted range (0..120, matching the web
+// SetFps handler) and applies it, updating Screen.FPS only when libkvm accepts.
+func setEncoderFps(fps int) {
+	if fps < 0 {
+		fps = 0
+	} else if fps > 120 {
+		fps = 120
+	}
+	if common.GetKvmVision().SetFps(uint8(fps)) >= 0 {
+		common.GetScreen().FPS = uint8(fps)
+	}
+}
+
+// applyBitrateOrQuality applies a viewer's bitrate/quality request to the shared
+// Screen, following the web SetQuality contract: 1..100 sets JPEG quality,
+// 101..20000 sets the H.264 bitrate (kbps). Out-of-range values are clamped/
+// ignored so a hostile Tune can't wedge the encoder.
+func applyBitrateOrQuality(v uint32) {
+	if v < 1 {
+		return
+	}
+	if v > 20000 {
+		v = 20000
+	}
+	s := common.GetScreen()
+	if v <= 100 {
+		s.Quality = uint16(v)
+	} else {
+		s.BitRate = uint16(v)
+	}
+}
+
+// ---- InputSink --------------------------------------------------------------
+
+// maxKeys is the HID boot-keyboard rollover limit (keyboard.ts MAX_KEYS).
+const maxKeys = 6
+
+// inputSink adapts a normalized mesh.InputAction stream to HID reports, porting
+// the browser's report construction (lib/keyboard.ts + lib/mouse.ts): it tracks
+// pressed modifiers/keys to build the 8-byte keyboard report (hidg0), and mouse
+// button state + last absolute position to build the 6-byte absolute-mouse
+// report (hidg2). Writes go through the same hid.Hid singleton the /api/ws path
+// uses; the device mutexes serialize us against it.
+type inputSink struct {
+	hid *hid.Hid
+
+	mu       sync.Mutex
+	modifier byte
+	keys     []string // pressed non-modifier codes, in press order (≤ maxKeys)
+	buttons  byte
+	lastX    float64 // last absolute X, normalized 0..1
+	lastY    float64
+}
+
+// NewInputSink builds the on-device native HID sink. HID devices are opened
+// lazily on first write (hid.writeHID reopens a nil descriptor), so this never
+// touches /dev/hidg* until an input route actually delivers an event.
+func NewInputSink() mesh.InputSink {
+	return &inputSink{hid: hid.GetHid(), lastX: 0.5, lastY: 0.5}
+}
+
+// Apply translates one action to a HID report and writes it.
+func (s *inputSink) Apply(a mesh.InputAction) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	switch a.Kind {
+	case mesh.InputActionMouseMove:
+		s.lastX = clamp01(a.X)
+		s.lastY = clamp01(a.Y)
+		s.hid.WriteHid2(buildAbsoluteReport(s.buttons, s.lastX, s.lastY, 0))
+
+	case mesh.InputActionMouseButton:
+		bit := mouseButtonBit(a.Button)
+		if bit == 0 {
+			return
+		}
+		if a.Down {
+			s.buttons |= bit
+		} else {
+			s.buttons &^= bit
+		}
+		s.hid.WriteHid2(buildAbsoluteReport(s.buttons, s.lastX, s.lastY, 0))
+
+	case mesh.InputActionWheel:
+		wheel := clampInt(int(math.Round(a.DY)), -127, 127)
+		s.hid.WriteHid2(buildAbsoluteReport(s.buttons, s.lastX, s.lastY, wheel))
+
+	case mesh.InputActionKey:
+		s.applyKey(a)
+	}
+}
+
+// applyKey updates the tracked keyboard state and writes the 8-byte report.
+func (s *inputSink) applyKey(a mesh.InputAction) {
+	code := resolveCode(a.Code, a.Key)
+	if code == "" {
+		return
+	}
+	if bit, ok := ModifierMap[code]; ok {
+		if a.Down {
+			s.modifier |= bit
+		} else {
+			s.modifier &^= bit
+		}
+	} else if _, ok := KeycodeMap[code]; ok {
+		if a.Down {
+			if !containsCode(s.keys, code) && len(s.keys) < maxKeys {
+				s.keys = append(s.keys, code)
+			}
+		} else {
+			s.keys = removeCode(s.keys, code)
+		}
+	} else {
+		return // unmapped code — nothing to press
+	}
+	s.hid.WriteHid0(s.buildKeyReport())
+}
+
+// buildKeyReport builds the 8-byte HID keyboard report (keyboard.ts buildReport):
+// [modifier, 0x00, keycode0..keycode5].
+func (s *inputSink) buildKeyReport() []byte {
+	report := make([]byte, 8)
+	report[0] = s.modifier
+	i := 2
+	for _, code := range s.keys {
+		if i >= 8 {
+			break
+		}
+		report[i] = KeycodeMap[code]
+		i++
+	}
+	return report
+}
+
+// mouseButtonBit maps a normalized button index (0=left,1=middle,2=right) to its
+// HID buttons-byte bit (mouse.ts getMouseButtonBit: left=1<<0, middle=1<<2,
+// right=1<<1).
+func mouseButtonBit(button uint8) byte {
+	switch button {
+	case 0:
+		return 1 << 0 // left
+	case 1:
+		return 1 << 2 // middle
+	case 2:
+		return 1 << 1 // right
+	default:
+		return 0
+	}
+}
+
+// buildAbsoluteReport builds the 6-byte absolute-mouse report (mouse.ts
+// MouseReportAbsolute.buildReport) for hidg2:
+// [buttons, xLo, xHi, yLo, yHi, wheel], x/y as 15-bit little-endian.
+func buildAbsoluteReport(buttons byte, x, y float64, wheel int) []byte {
+	hx := scaleAxis(x)
+	hy := scaleAxis(y)
+	w := clampInt(wheel, -127, 127)
+	return []byte{
+		buttons,
+		byte(hx & 0xff), byte((hx >> 8) & 0xff),
+		byte(hy & 0xff), byte((hy >> 8) & 0xff),
+		byte(w & 0xff),
+	}
+}
+
+// scaleAxis maps a normalized 0..1 coordinate to the device's absolute range,
+// exactly as the browser does (getCoordinate: floor(0x7fff * v) + 1).
+func scaleAxis(v float64) int {
+	v = clamp01(v)
+	return int(float64(0x7fff)*v) + 1
+}
+
+func clamp01(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
+}
+
+func clampInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+func containsCode(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
+}
+
+func removeCode(xs []string, want string) []string {
+	out := xs[:0]
+	for _, x := range xs {
+		if x != want {
+			out = append(out, x)
+		}
+	}
+	return out
+}

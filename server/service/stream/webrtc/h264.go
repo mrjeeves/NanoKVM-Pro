@@ -2,7 +2,11 @@ package webrtc
 
 import (
 	"NanoKVM-Server/config"
+	"NanoKVM-Server/service/iceservers"
+	"encoding/json"
 	"net/http"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -90,6 +94,13 @@ func Connect(c *gin.Context) {
 	// handle signaling
 	signalingHandler := NewSignalingHandler(client)
 	signalingHandler.RegisterCallbacks()
+	// Ship the ICE servers (venue union first) to the browser so it builds its
+	// peer connections from the relays a remote viewer can actually reach,
+	// rather than a hardcoded public STUN.
+	if err := sendICEServers(client, iceServers); err != nil {
+		log.Errorf("failed to send ICE servers: %s", err)
+		return
+	}
 
 	// read and wait
 	for {
@@ -108,6 +119,19 @@ func Connect(c *gin.Context) {
 func createICEServers() []webrtc.ICEServer {
 	var iceServers []webrtc.ICEServer
 
+	// Venue servers FIRST: the deduplicated STUN/TURN union of every mesh this
+	// KVM is on (fleet first), published by the mesh bridge. A remote viewer
+	// reaching this web UI through AllMyStuff's sites proxy shares a mesh with
+	// us, so these are the relays it can actually reach — offer them ahead of
+	// the locally-configured (often LAN-only) STUN/TURN.
+	for _, s := range iceservers.Get() {
+		iceServers = append(iceServers, webrtc.ICEServer{
+			URLs:       s.URLs,
+			Username:   s.Username,
+			Credential: s.Credential,
+		})
+	}
+
 	conf := config.GetInstance()
 
 	if conf.Stun != "" && conf.Stun != "disable" {
@@ -124,7 +148,56 @@ func createICEServers() []webrtc.ICEServer {
 		})
 	}
 
-	return iceServers
+	return dedupICEServers(iceServers)
+}
+
+// dedupICEServers collapses entries that share the same URL set, keeping the
+// first occurrence — so a venue TURN and a locally-configured TURN at the same
+// URL don't double up (the venue entry, prepended first, wins its credentials).
+func dedupICEServers(servers []webrtc.ICEServer) []webrtc.ICEServer {
+	seen := make(map[string]bool, len(servers))
+	out := make([]webrtc.ICEServer, 0, len(servers))
+	for _, s := range servers {
+		urls := make([]string, len(s.URLs))
+		copy(urls, s.URLs)
+		sort.Strings(urls)
+		key := strings.Join(urls, ",")
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, s)
+	}
+	return out
+}
+
+// clientICEServer is the browser-facing shape of an ICE server (an RTCIceServer
+// literal). Credential is an interface so an empty one marshals away.
+type clientICEServer struct {
+	URLs       []string    `json:"urls"`
+	Username   string      `json:"username,omitempty"`
+	Credential interface{} `json:"credential,omitempty"`
+}
+
+// sendICEServers ships the server-built ICE list to the browser as an
+// "ice-servers" signaling message so it can defer creating its peer connections
+// until it knows which relays to use.
+func sendICEServers(client *Client, iceServers []webrtc.ICEServer) error {
+	clientServers := make([]clientICEServer, 0, len(iceServers))
+	for _, server := range iceServers {
+		clientServers = append(clientServers, clientICEServer{
+			URLs:       server.URLs,
+			Username:   server.Username,
+			Credential: server.Credential,
+		})
+	}
+
+	data, err := json.Marshal(clientServers)
+	if err != nil {
+		return err
+	}
+
+	return client.WriteMessage("ice-servers", string(data))
 }
 
 func createMediaEngine() (*webrtc.MediaEngine, error) {

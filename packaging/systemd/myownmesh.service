@@ -14,9 +14,13 @@ Before=nanokvm.service
 [Service]
 Type=simple
 Environment=MYOWNMESH_HOME=/data/myownmesh
-# Data-channel only: the KVM's video rides its own tunnelled web UI (the "sites"
-# plane), never a WebRTC media lane. 0 provisions no media m-lines at all.
-Environment=MYOWNMESH_MEDIA_LANES=0
+# 1 = one video+audio lane pair for the native screen route (Slice 1): the Go
+# bridge pushes already-encoded H.264 onto the daemon's native RTP video lane
+# (media_track_pipe -> the display route) and the remote console renders it, with
+# keyboard/mouse riding back over the input route. That needs the daemon to
+# provision the lane. The web UI's "sites" plane still rides the data channel
+# alongside it, so a viewer that prefers the tunnelled UI is unaffected.
+Environment=MYOWNMESH_MEDIA_LANES=1
 # The appliance's daemon version is owned by the NanoKVM-Pro release pipeline
 # (.myownmesh-rev -> bundled binary). Keep the daemon's own self-updater out of
 # the loop, and — unlike the NanoKVM, where boot re-stages a tmpfs copy — on the

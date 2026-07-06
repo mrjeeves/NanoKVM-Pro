@@ -94,10 +94,50 @@ func (h *Hid) Close() {
 	h.CloseNoLock()
 }
 
+// ensureKeyboard lazily opens the keyboard gadget if no descriptor is open yet.
+// The web WS path calls Open() when a client connects, but the native (mesh)
+// input path never does — so without this, its first write hits a nil g0, which
+// returns os.ErrInvalid (not ErrClosed, so the reopen branch below never fires)
+// and every keystroke is silently dropped. Caller holds kbMutex.
+func (h *Hid) ensureKeyboard() {
+	if h.g0 != nil {
+		return
+	}
+	var err error
+	if h.g0, err = os.OpenFile(HID0, os.O_WRONLY, 0o666); err != nil {
+		log.Errorf("open %s failed: %s", HID0, err)
+	}
+}
+
+// ensureRelMouse lazily opens the relative-mouse gadget (see ensureKeyboard).
+// Caller holds mouseMutex.
+func (h *Hid) ensureRelMouse() {
+	if h.g1 != nil {
+		return
+	}
+	var err error
+	if h.g1, err = os.OpenFile(HID1, os.O_WRONLY, 0o666); err != nil {
+		log.Errorf("open %s failed: %s", HID1, err)
+	}
+}
+
+// ensureAbsMouse lazily opens the absolute-mouse gadget (see ensureKeyboard).
+// Caller holds mouseMutex.
+func (h *Hid) ensureAbsMouse() {
+	if h.g2 != nil {
+		return
+	}
+	var err error
+	if h.g2, err = os.OpenFile(HID2, os.O_WRONLY, 0o666); err != nil {
+		log.Errorf("open %s failed: %s", HID2, err)
+	}
+}
+
 func (h *Hid) WriteHid0(data []byte) {
 	deadline := time.Now().Add(8 * time.Millisecond)
 
 	h.kbMutex.Lock()
+	h.ensureKeyboard()
 	_ = h.g0.SetWriteDeadline(deadline)
 	_, err := h.g0.Write(data)
 	h.kbMutex.Unlock()
@@ -122,6 +162,7 @@ func (h *Hid) WriteHid1(data []byte) {
 	deadline := time.Now().Add(8 * time.Millisecond)
 
 	h.mouseMutex.Lock()
+	h.ensureRelMouse()
 	_ = h.g1.SetWriteDeadline(deadline)
 	_, err := h.g1.Write(data)
 	h.mouseMutex.Unlock()
@@ -146,6 +187,7 @@ func (h *Hid) WriteHid2(data []byte) {
 	deadline := time.Now().Add(8 * time.Millisecond)
 
 	h.mouseMutex.Lock()
+	h.ensureAbsMouse()
 	_ = h.g2.SetWriteDeadline(deadline)
 	_, err := h.g2.Write(data)
 	h.mouseMutex.Unlock()
