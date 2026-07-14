@@ -41,6 +41,15 @@ var defaultConfig = &Config{
 		// (the Go zero value; spelled out here for self-documentation).
 		PublicClaims: false,
 		DaemonBin:    "/kvmapp/system/bin/myownmesh",
+		// The USR button is not surfaced to Linux by the Pro firmware, so the
+		// button watcher is OFF by default (the web UI / API still raise a
+		// hand). To enable it, confirm the USR button's evdev node on the
+		// device, set inputDevice to it, and flip buttonEnabled in server.yaml.
+		HandRaise: HandRaise{
+			ButtonEnabled: false,
+			InputDevice:   "/dev/input/event0",
+			KeyCode:       0,
+		},
 	},
 }
 

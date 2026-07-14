@@ -64,7 +64,7 @@ const en = {
         authDescription: 'Please enter the AP password to continue',
         authFailed: 'Invalid AP password',
         passPlaceholder: 'AP password',
-        verifyBtn: 'Verify',
+        verifyBtn: 'Verify'
       }
     },
     notification: {
@@ -511,7 +511,15 @@ const en = {
         memberships: 'Mesh Memberships',
         noMemberships: 'Not joined to any mesh yet',
         fleet: 'fleet',
-        joining: 'joining'
+        joining: 'joining',
+        handRaise: 'Hand Raise',
+        handRaiseDesc:
+          'Raise a hand on the CEC support queue so a technician knows this device needs help. The USR button can also toggle the hand once enabled in the device configuration.',
+        supportNumber: 'Support Number',
+        raiseHand: 'Raise hand',
+        lowerHand: 'Lower hand',
+        handRaised: 'Hand raised — help is on the way',
+        handDown: 'Hand down'
       },
       tailscale: {
         title: 'Tailscale',

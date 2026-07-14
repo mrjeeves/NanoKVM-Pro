@@ -68,6 +68,26 @@ type Mesh struct {
 	// DaemonBin is the best-guess path to the myownmesh daemon binary, used by
 	// the packaging/deploy tooling — not by the Go bridge directly.
 	DaemonBin string `yaml:"daemonBin"`
+	// HandRaise wires the physical user button to the CEC "hand raise"
+	// (Ask-for-help) system.
+	HandRaise HandRaise `yaml:"handRaise"`
+}
+
+// HandRaise configures the physical-button → CEC hand-raise integration.
+type HandRaise struct {
+	// ButtonEnabled wires the device's user button (the USR button on the Pro)
+	// to toggle the CEC hand raise via a double short-press. It is OFF by
+	// default on the Pro: unlike the PCIe board's BOOT button, the USR button
+	// is not surfaced to Linux by this firmware, so the evdev node and key code
+	// must be confirmed on real hardware before enabling. (The web UI and
+	// /api/mesh/help endpoints raise a hand regardless of this setting.)
+	ButtonEnabled bool `yaml:"buttonEnabled"`
+	// InputDevice is the evdev node to read the button from. Best-guess default
+	// /dev/input/event0 — verify it is the USR button before enabling.
+	InputDevice string `yaml:"inputDevice"`
+	// KeyCode, when non-zero, restricts the gesture to a specific evdev key
+	// code. 0 (the default) matches any key.
+	KeyCode int `yaml:"keyCode"`
 }
 
 type Logger struct {
