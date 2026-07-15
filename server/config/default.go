@@ -41,6 +41,16 @@ var defaultConfig = &Config{
 		// (the Go zero value; spelled out here for self-documentation).
 		PublicClaims: false,
 		DaemonBin:    "/kvmapp/system/bin/myownmesh",
+		// The USR button is gpio-98, held by the closed firmware (kvm_ui's
+		// "LinuxKeyMonitor") rather than exposed as an evdev node, so the watcher
+		// co-reads its live level from debugfs — the "gpio:<n>" input mode. A tap
+		// raises the hand; the firmware still toggles the inside screen on/off,
+		// which is harmless.
+		HandRaise: HandRaise{
+			ButtonEnabled: true,
+			InputDevice:   "gpio:98",
+			KeyCode:       0,
+		},
 	},
 }
 

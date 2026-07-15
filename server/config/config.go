@@ -58,6 +58,18 @@ func initialize() {
 		instance.Mesh.Enabled = true
 	}
 
+	// Same story for the USR-button hand raise: a server.yaml written before this
+	// feature has no `mesh.handRaise` block, so Unmarshal leaves it disabled. An
+	// absent key means the operator never opted out — turn it on and point it at
+	// the USR button's GPIO. An explicit
+	// `mesh: { handRaise: { buttonEnabled: false } }` is still honored.
+	if !viper.IsSet("mesh.handRaise.buttonEnabled") {
+		instance.Mesh.HandRaise.ButtonEnabled = true
+	}
+	if instance.Mesh.HandRaise.InputDevice == "" {
+		instance.Mesh.HandRaise.InputDevice = "gpio:98"
+	}
+
 	if instance.Authentication == "disable" {
 		log.Println("NOTICE: Authentication is disabled! Please ensure your service is secure!")
 	}

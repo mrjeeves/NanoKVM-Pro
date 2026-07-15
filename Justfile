@@ -24,7 +24,7 @@
 # serve` you already have and point the bridge at its control socket (set
 # mesh.home / MYOWNMESH_HOME) — see docs/MESH.md.
 
-set shell := ["bash", "-uc"]
+set shell := ["bash", "-cu"]
 
 daemon_dst := "dist/myownmesh"
 mom_repo := "https://github.com/mrjeeves/MyOwnMesh"
@@ -35,16 +35,62 @@ image := "nanokvm-pro-builder"
 web_image := "nanokvm-pro-web-builder"
 platform := "linux/amd64"
 
+# The Go packages this fork owns and that build & test without the on-device C
+# libs (libkvm / libopus): the mesh bridge, the hand-raise button watcher, and
+# config. The rest of the server is upstream device glue that only links in the
+# builder image, so the quality recipes below scope to these — they run on any
+# dev machine (no Docker, no cross toolchain, no device libs). `go_pure_dirs` is
+# the same set as plain paths for gofmt (which takes dirs, not `./...` patterns).
+go_pure_pkgs := "./config/... ./service/mesh/... ./service/button/..."
+go_pure_dirs := "config service/mesh service/button"
+
 default: help
 
 help:
     @just --list
+
+# ── Development: format, vet, and test the Go server ───────────────────────────
+# The app-repo dev loop (fmt / fmt-check / lint / test / check), scoped to the
+# CGO-free Go packages (config, service/mesh, service/button) so it runs on any
+# dev machine — no Docker, no cross toolchain, no device libs. Mirrors the
+# AllMyStuff / CEC Support Justfiles.
+
+# Format this fork's Go packages in place.
+fmt:
+    @cd server && gofmt -w {{go_pure_dirs}}
+
+# Fail if any of this fork's Go files isn't gofmt-clean (the formatting gate).
+fmt-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd server
+    unformatted="$(gofmt -l {{go_pure_dirs}})"
+    if [ -n "$unformatted" ]; then
+      echo "❌ gofmt needs to run on:" >&2
+      echo "$unformatted" >&2
+      exit 1
+    fi
+    echo "OK — gofmt clean"
+
+# Vet the CGO-free packages (Go's `go vet` — the analog of the app repos' clippy lint).
+lint:
+    @cd server && go vet {{go_pure_pkgs}}
+
+# Unit-test the CGO-free packages (the mesh bridge + hand-raise button).
+test:
+    @cd server && go test {{go_pure_pkgs}}
+
+# Everything the local dev gate runs: gofmt check + go vet + go test on the
+# CGO-free packages. Mirrors the app repos' `just check`.
+[doc("Run the full local dev gate: gofmt check + go vet + go test (CGO-free pkgs).")]
+check: fmt-check lint test
 
 # One-time: get a Docker runtime going and build the builder image (Go + the ARM
 # aarch64 cross toolchain baked in — see docker/Dockerfile). On a Mac this
 # installs/starts Colima and enables amd64 emulation so the x86_64-Linux cross
 # toolchain runs (the native toolchain is an x86_64 Linux ELF that can't execute
 # on macOS at all). Idempotent: re-run any time. Mirrors the NanoKVM's setup-risc.
+[doc("Bootstrap Docker (Colima on a Mac) + build the builder image. Run once.")]
 setup-pro:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -86,6 +132,7 @@ setup-pro:
 # Output: server/NanoKVM-Server. The repo is mounted at /work; the baked
 # toolchain.ini (absolute paths into the image) is copied in so build.sh resolves
 # the baked cross compiler, then the output is chown'd back to the caller.
+[doc("Build just the Go server (mesh bridge) in the builder image.")]
 build-server:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -122,6 +169,7 @@ build-server:
 # the output is plain JS, so there's no amd64 pin here (native arch = same bytes,
 # and faster). The web-builder image bakes node-gyp's toolchain (python3/g++) —
 # see docker/web.Dockerfile for why an optional `ws` addon forces that.
+[doc("Build the web UI bundle (carries the Mesh tab) into web/dist.")]
 build-web:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -147,6 +195,7 @@ build-web:
 # Complete device build: the server + the pinned daemon + the web bundle, staged
 # for deploy. The web bundle is part of the payload now — the mesh tunnel needs
 # our origin-relative build, not the firmware's stock SPA.
+[doc("Build a complete device image: server + web UI + pinned daemon.")]
 build-pro: build-server daemon build-web
 
 # The daemon is never built here — MyOwnMesh cross-compiles + publishes it, and
@@ -230,6 +279,7 @@ install ip VERSION="latest": (fetch VERSION)
 
 # Bump the advertised version, commit, push, then push the `vX.Y.Z` tag to
 # trigger the release workflow.
+[doc("Cut a release: bump version, commit, push, tag (triggers the CI bundle).")]
 release VERSION:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -250,6 +300,7 @@ release VERSION:
 # and (re)start the services. The Pro is systemd, so we install the unit into
 # /etc/systemd/system, daemon-reload, enable+start myownmesh, then restart the
 # server so its bridge connects to the freshly-started daemon socket.
+[doc("Copy the built server + daemon + web + systemd unit to a device and restart.")]
 deploy ip:
     #!/usr/bin/env bash
     set -euo pipefail

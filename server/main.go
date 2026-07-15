@@ -14,6 +14,7 @@ import (
 	"NanoKVM-Server/logger"
 	"NanoKVM-Server/middleware"
 	"NanoKVM-Server/router"
+	"NanoKVM-Server/service/button"
 	"NanoKVM-Server/service/mesh"
 	"NanoKVM-Server/service/mesh/glue"
 	"NanoKVM-Server/service/vm/jiggler"
@@ -89,6 +90,15 @@ func run() {
 		bridge.SetVideoSource(glue.NewVideoSource())
 		bridge.SetInputSink(glue.NewInputSink())
 		go bridge.Start(make(chan struct{}))
+
+		// Wire the physical user (USR) button to the CEC hand-raise. Off by
+		// default on the Pro (the USR node isn't confirmed); self-disabling if
+		// the input node isn't present.
+		button.Watch(button.Config{
+			Enabled: conf.Mesh.HandRaise.ButtonEnabled,
+			Device:  conf.Mesh.HandRaise.InputDevice,
+			KeyCode: conf.Mesh.HandRaise.KeyCode,
+		}, bridge)
 	}
 	mesh.RegisterRoutes(r, bridge)
 

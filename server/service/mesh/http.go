@@ -76,6 +76,92 @@ func RegisterRoutes(r *gin.Engine, bridge *Bridge) {
 		bridge.RotateClaimCode()
 		rsp.OkRspWithData(c, bridge.StatusSnapshot())
 	})
+
+	// Reset the device's mesh ownership back to claim mode — the recovery path
+	// for a device still showing claimed when the owner-side unclaim in
+	// AllMyStuff never reached it. LOCAL ONLY: rejected over the mesh "sites"
+	// tunnel, mirroring the device-local claim policy (a mesh viewer must not be
+	// able to reset the box out from under its owner). Runs the same teardown as
+	// an owner Release, then reports the now-claimable snapshot.
+	api.POST("/unclaim", func(c *gin.Context) {
+		var rsp proto.Response
+		if bridge == nil {
+			rsp.ErrRsp(c, -1, "mesh disabled")
+			return
+		}
+		if middleware.IsMeshAuthed(c.Request) {
+			rsp.ErrRsp(c, -1, "reset is only allowed from the local network, not over the mesh")
+			return
+		}
+		bridge.Unclaim()
+		rsp.OkRspWithData(c, bridge.StatusSnapshot())
+	})
+
+	// CEC "hand raise" (Ask for help). GET reports current state; the three
+	// POSTs raise / lower / toggle the hand on the cecsupport-clients mesh
+	// (see cec.go). The physical user button drives the same bridge.ToggleHand
+	// in-process; these give the web UI (and scripts) the same control.
+	api.GET("/help", func(c *gin.Context) {
+		var rsp proto.Response
+		if bridge == nil {
+			rsp.OkRspWithData(c, HelpStatus{Enabled: false})
+			return
+		}
+		rsp.OkRspWithData(c, bridge.HelpStatus())
+	})
+	api.POST("/help/raise", func(c *gin.Context) { handleHelp(c, bridge, helpRaise) })
+	api.POST("/help/lower", func(c *gin.Context) { handleHelp(c, bridge, helpLower) })
+	api.POST("/help/toggle", func(c *gin.Context) { handleHelp(c, bridge, helpToggle) })
+}
+
+// HelpStatus is the /api/mesh/help payload: whether a hand is up and this
+// device's dialable support number.
+type HelpStatus struct {
+	Enabled   bool   `json:"enabled"`
+	Asking    bool   `json:"asking"`
+	SupportID string `json:"supportId"`
+}
+
+// HelpStatus assembles the current hand-raise snapshot.
+func (b *Bridge) HelpStatus() HelpStatus {
+	return HelpStatus{
+		Enabled:   true,
+		Asking:    b.HelpAsking(),
+		SupportID: b.SupportID(),
+	}
+}
+
+type helpAction int
+
+const (
+	helpRaise helpAction = iota
+	helpLower
+	helpToggle
+)
+
+// handleHelp runs a hand-raise action and returns the resulting HelpStatus, so
+// a caller (web UI or button) always learns the new state in one round-trip.
+func handleHelp(c *gin.Context, bridge *Bridge, action helpAction) {
+	var rsp proto.Response
+	if bridge == nil {
+		rsp.ErrRsp(c, -1, "mesh disabled")
+		return
+	}
+	var err error
+	switch action {
+	case helpRaise:
+		err = bridge.RaiseHand()
+	case helpLower:
+		err = bridge.LowerHand()
+	case helpToggle:
+		_, err = bridge.ToggleHand()
+	}
+	if err != nil {
+		log.Errorf("mesh: CEC hand-raise action failed: %s", err)
+		rsp.ErrRsp(c, -2, err.Error())
+		return
+	}
+	rsp.OkRspWithData(c, bridge.HelpStatus())
 }
 
 // RotateClaimCode discards the current claim code and, when the device is

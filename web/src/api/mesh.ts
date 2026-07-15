@@ -10,3 +10,19 @@ export function getMeshStatus() {
 export function rotateClaimCode() {
   return http.post('/api/mesh/claim/code/rotate');
 }
+
+// get CEC hand-raise status (whether a hand is up + the support number)
+export function getHelpStatus() {
+  return http.get('/api/mesh/help');
+}
+
+// toggle the CEC hand raise (raise if down, lower if up); returns the new state
+export function toggleHand() {
+  return http.post('/api/mesh/help/toggle');
+}
+
+// reset this device's mesh ownership back to claim mode (forget owner + fleet).
+// Local-network only — the server rejects it over the mesh tunnel.
+export function unclaimDevice() {
+  return http.post('/api/mesh/unclaim');
+}

@@ -5,13 +5,16 @@
 This fork of [sipeed/NanoKVM-Pro](https://github.com/sipeed/NanoKVM-Pro) turns the device into **AllMyKVM**, a first-class appliance in the [AllMyStuff](https://allmystuff.works) ecosystem. Everything below this section is upstream Sipeed documentation and still applies.
 
 - **AllMyStuff branding** — web UI renamed AllMyKVM in every locale, restyled in AllMyStuff's design language (deep-violet dark theme, `#f11ea1` magenta accent, Inter font), with the AllMyStuff app icon as the favicon.
-- **Pure-Go mesh bridge** (`server/service/mesh/`) paired with a bundled [MyOwnMesh](https://myownmesh.net) daemon (Rust, pinned at `v0.2.30` in `.myownmesh-rev`; aarch64-musl build, run as a systemd `myownmesh.service` unit from `packaging/systemd/`).
+- **Pure-Go mesh bridge** (`server/service/mesh/`) paired with a bundled [MyOwnMesh](https://myownmesh.net) daemon (Rust, pinned at `v0.2.40` in `.myownmesh-rev`; aarch64-musl build, run as a systemd `myownmesh.service` unit from `packaging/systemd/`).
 - **LAN-first claiming** — an unclaimed device advertises on the mDNS-only `allmystuff-local-claim-v1` rendezvous mesh (no relays, no wall clock needed — works pre-NTP), so a fresh KVM auto-appears in the claim sheet of any AllMyStuff app on the same LAN; WAN claiming stays off unless `publicClaims: true`.
 - **Zero-login access from anywhere** — the web UI tunnels over the mesh "sites" plane (no port forwarding or VPN), and mesh roster membership *is* the authentication for mesh viewers.
 - **Full KVM-node lifecycle** — presence advertising (NodeProfile with `kvm`/`sites` capability tags), fleet membership, attach/detach to the machine it controls (renames itself `KVM-<label>`), owner-curated mesh membership, remote restart, and unclaim (factory-reset of the mesh identity).
+- **CEC hand raise** (`server/service/mesh/cec.go`) — the KVM can raise a hand on the [CEC Support](https://github.com/mrjeeves/CECSupport) help queue (a `SupportPresence` beacon on the `cecsupport-clients` mesh, exactly like a CEC customer), so a technician sees the device needs help along with its 9-digit support number; the KVM auto-approves the technician who answers (only while it's still asking). Raise/lower from the web UI's Mesh tab, the `/api/mesh/help/*` endpoints, or a **tap of the USR button** (`server/service/button/`; on by default, `mesh.handRaise` in `server.yaml`). The USR button (gpio-98) is owned by the closed firmware (kvm_ui's `LinuxKeyMonitor`) rather than exposed as an evdev node, so the watcher co-reads its live level from debugfs (the `gpio:<n>` input mode); the firmware still toggles the inside screen on a tap, which is harmless.
 - **usbnet internet sharing** — the KVM NATs its own uplink to the USB-tethered host (`usbnet-share.service`).
 
 Details in [docs/MESH.md](docs/MESH.md) · companion app: [allmystuff.works](https://allmystuff.works) · mesh tech: [myownmesh.net](https://myownmesh.net)
+
+> **⚠️ Maintainers — mirrored source, one deliberate divergence.** `server/service/mesh` and `server/service/button` are kept as verbatim copies shared with the PCIe [NanoKVM](https://github.com/mrjeeves/NanoKVM) repo, **except** `server/service/button/button.go`: this Pro repo adds the `gpio:<n>` USR-button mode (the Pro's USR button is gpio-98, owned by the closed firmware, not an evdev node — the non-pro board has neither). **Do not blindly copy `button.go` between the two repos** or you'll silently drop that mode — reconcile changes by hand. (See the banner at the top of `button.go`.)
 
 ---
 
