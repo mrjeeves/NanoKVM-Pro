@@ -2,6 +2,17 @@
 // the PCIe NanoKVM, the USR button on the Pro — and drives the CEC hand raise
 // from it.
 //
+// ┌─ MIRRORED SOURCE — DIVERGED ────────────────────────────────────────────────┐
+// │ This package (like server/service/mesh) is maintained as a copy shared with │
+// │ the PCIe NanoKVM repo (github.com/mrjeeves/NanoKVM). This Pro copy has       │
+// │ DELIBERATELY DIVERGED: it adds the "gpio:<n>" input mode                     │
+// │ (gpioLineFromDevice / watchGPIO / readGPIOLevel), because the Pro's USR      │
+// │ button is gpio-98, owned by the closed firmware (kvm_ui's "LinuxKeyMonitor") │
+// │ instead of being an evdev node. The non-pro board has no such button and no  │
+// │ such mode. Do NOT re-sync by copying button.go wholesale between the two     │
+// │ repos — that silently drops this mode. Reconcile changes by hand.           │
+// └─────────────────────────────────────────────────────────────────────────────┘
+//
 // The button is an evdev node (default /dev/input/event0) that emits EV_KEY
 // events. On the PCIe NanoKVM the on-device screen firmware (the C++ kvm_system
 // app) also reads this node and, out of the box, reacts to presses: a short

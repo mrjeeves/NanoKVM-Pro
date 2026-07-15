@@ -14,6 +14,8 @@ This fork of [sipeed/NanoKVM-Pro](https://github.com/sipeed/NanoKVM-Pro) turns t
 
 Details in [docs/MESH.md](docs/MESH.md) · companion app: [allmystuff.works](https://allmystuff.works) · mesh tech: [myownmesh.net](https://myownmesh.net)
 
+> **⚠️ Maintainers — mirrored source, one deliberate divergence.** `server/service/mesh` and `server/service/button` are kept as verbatim copies shared with the PCIe [NanoKVM](https://github.com/mrjeeves/NanoKVM) repo, **except** `server/service/button/button.go`: this Pro repo adds the `gpio:<n>` USR-button mode (the Pro's USR button is gpio-98, owned by the closed firmware, not an evdev node — the non-pro board has neither). **Do not blindly copy `button.go` between the two repos** or you'll silently drop that mode — reconcile changes by hand. (See the banner at the top of `button.go`.)
+
 ---
 
 > ## Code Availability
