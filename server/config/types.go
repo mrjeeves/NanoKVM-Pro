@@ -75,18 +75,18 @@ type Mesh struct {
 
 // HandRaise configures the physical-button → CEC hand-raise integration.
 type HandRaise struct {
-	// ButtonEnabled wires the device's user button (the USR button on the Pro)
-	// to toggle the CEC hand raise via a double short-press. It is OFF by
-	// default on the Pro: unlike the PCIe board's BOOT button, the USR button
-	// is not surfaced to Linux by this firmware, so the evdev node and key code
-	// must be confirmed on real hardware before enabling. (The web UI and
-	// /api/mesh/help endpoints raise a hand regardless of this setting.)
+	// ButtonEnabled wires the device's user button — the USR button on the Pro —
+	// to toggle the CEC hand raise with a tap. (The web UI and /api/mesh/help
+	// endpoints raise a hand regardless of this setting.)
 	ButtonEnabled bool `yaml:"buttonEnabled"`
-	// InputDevice is the evdev node to read the button from. Best-guess default
-	// /dev/input/event0 — verify it is the USR button before enabling.
+	// InputDevice is where to read the button. Either an evdev node
+	// ("/dev/input/eventN") or, for a button the on-device firmware owns via the
+	// gpiochip chardev (the Pro's USR button, gpio-98), a "gpio:<n>" spec — the
+	// watcher then co-reads the line's live level from debugfs. Default
+	// "gpio:98".
 	InputDevice string `yaml:"inputDevice"`
-	// KeyCode, when non-zero, restricts the gesture to a specific evdev key
-	// code. 0 (the default) matches any key.
+	// KeyCode, when non-zero, restricts an evdev gesture to a specific key code.
+	// 0 (the default) matches any key. Ignored in gpio: mode.
 	KeyCode int `yaml:"keyCode"`
 }
 

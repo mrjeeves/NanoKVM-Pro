@@ -9,6 +9,45 @@ func newDetector() *detector {
 	return &detector{tapMax: tapMax, resetHold: resetHold}
 }
 
+// A real debugfs dump from a NanoKVM-Pro. gpio-98 is the USR button
+// (LinuxKeyMonitor3); it reads "hi" released and "lo" pressed.
+const proGPIODump = `gpiochip2: GPIOs 64-95, parent: platform/6000000.gpio, 6000000.gpio:
+ gpio-74  (                    |sysfs               ) in  hi
+ gpio-82  (                    |LT86102UXC_HDMI_RXI ) in  hi IRQ
+
+gpiochip3: GPIOs 96-127, parent: platform/6001000.gpio, 6001000.gpio:
+ gpio-97  (                    |rotary@0            ) in  hi IRQ
+ gpio-98  (                    |LinuxKeyMonitor3    ) in  lo
+`
+
+func TestParseGPIOLevel(t *testing.T) {
+	if lvl, err := parseGPIOLevel(proGPIODump, 98); err != nil || lvl != "lo" {
+		t.Fatalf("gpio-98: got %q, %v; want lo", lvl, err)
+	}
+	// A line with a trailing IRQ flag still yields the level (field after dir).
+	if lvl, err := parseGPIOLevel(proGPIODump, 82); err != nil || lvl != "hi" {
+		t.Fatalf("gpio-82: got %q, %v; want hi", lvl, err)
+	}
+	// gpio-9 must not match gpio-98 (prefix guard).
+	if _, err := parseGPIOLevel(proGPIODump, 9); err == nil {
+		t.Fatal("gpio-9 should be absent, not matched against gpio-98")
+	}
+	if _, err := parseGPIOLevel(proGPIODump, 500); err == nil {
+		t.Fatal("absent line should error")
+	}
+}
+
+func TestGPIOLineFromDevice(t *testing.T) {
+	if n, ok := gpioLineFromDevice("gpio:98"); !ok || n != 98 {
+		t.Fatalf("gpio:98 → %d,%v; want 98,true", n, ok)
+	}
+	for _, dev := range []string{"/dev/input/event0", "gpio:", "gpio:-1", "gpio:abc", "event1"} {
+		if _, ok := gpioLineFromDevice(dev); ok {
+			t.Fatalf("%q should not parse as a gpio spec", dev)
+		}
+	}
+}
+
 // press feeds a down then an up separated by hold, and returns the gesture the
 // release produced.
 func press(d *detector, downAt time.Time, hold time.Duration) gesture {

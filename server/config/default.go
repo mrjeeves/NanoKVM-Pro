@@ -41,13 +41,14 @@ var defaultConfig = &Config{
 		// (the Go zero value; spelled out here for self-documentation).
 		PublicClaims: false,
 		DaemonBin:    "/kvmapp/system/bin/myownmesh",
-		// The USR button is not surfaced to Linux by the Pro firmware, so the
-		// button watcher is OFF by default (the web UI / API still raise a
-		// hand). To enable it, confirm the USR button's evdev node on the
-		// device, set inputDevice to it, and flip buttonEnabled in server.yaml.
+		// The USR button is gpio-98, held by the closed firmware (kvm_ui's
+		// "LinuxKeyMonitor") rather than exposed as an evdev node, so the watcher
+		// co-reads its live level from debugfs — the "gpio:<n>" input mode. A tap
+		// raises the hand; the firmware still toggles the inside screen on/off,
+		// which is harmless.
 		HandRaise: HandRaise{
-			ButtonEnabled: false,
-			InputDevice:   "/dev/input/event0",
+			ButtonEnabled: true,
+			InputDevice:   "gpio:98",
 			KeyCode:       0,
 		},
 	},

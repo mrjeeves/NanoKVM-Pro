@@ -514,7 +514,7 @@ const en = {
         joining: 'joining',
         handRaise: 'Hand Raise',
         handRaiseDesc:
-          'Raise a hand on the CEC support queue so a technician knows this device needs help. The USR button can also toggle the hand once enabled in the device configuration.',
+          'Raise a hand on the CEC support queue so a technician knows this device needs help. A tap of the USR button raises or lowers the hand too.',
         supportNumber: 'Support Number',
         raiseHand: 'Raise hand',
         lowerHand: 'Lower hand',

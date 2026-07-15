@@ -23,8 +23,11 @@ package button
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -55,6 +58,19 @@ const (
 	tapMax        = 1500 * time.Millisecond // <= this on release → hand raise
 	resetHold     = 9 * time.Second         // >= this on release → factory reset
 	reopenBackoff = 5 * time.Second
+)
+
+// GPIO-poll mode constants. When Device is "gpio:<n>" the watcher polls the
+// line's live level from the kernel's debugfs gpio dump instead of reading an
+// evdev node — for a button the on-device firmware owns via the gpiochip chardev
+// (the Pro's USR button, held by kvm_ui as "LinuxKeyMonitor"), which libgpiod
+// can't request but debugfs still exposes. gpioActiveLowPressed maps the level
+// to a press (these buttons idle high, pulled low when pressed).
+const (
+	debugfsGPIO          = "/sys/kernel/debug/gpio"
+	gpioPollInterval     = 40 * time.Millisecond
+	gpioActiveLowPressed = "lo"
+	gpioDeviceSpecPrefix = "gpio:"
 )
 
 // Toggler is the hand-raise action a tap drives. *mesh.Bridge satisfies it
@@ -101,14 +117,120 @@ func Watch(cfg Config, toggler Toggler) {
 	go run(cfg, toggler)
 }
 
-// run reads the evdev node, reopening it with backoff if it disappears (e.g. the
-// input driver comes up after us at boot).
+// run watches the configured button, reopening with backoff on error. Device
+// "gpio:<n>" selects the debugfs GPIO-poll path; anything else is an evdev node.
 func run(cfg Config, toggler Toggler) {
+	if line, ok := gpioLineFromDevice(cfg.Device); ok {
+		log.Infof("button: watching GPIO %d via %s (tap = hand raise)", line, debugfsGPIO)
+		for {
+			watchGPIO(cfg, toggler, line)
+			time.Sleep(reopenBackoff)
+		}
+	}
 	log.Infof("button: watching %s (tap = hand raise, hold %s = factory reset)", cfg.Device, resetHold)
 	for {
 		watchOnce(cfg, toggler)
 		time.Sleep(reopenBackoff)
 	}
+}
+
+// gpioLineFromDevice parses a "gpio:<n>" spec into a global GPIO line number.
+// Anything else (an evdev path) returns ok=false.
+func gpioLineFromDevice(device string) (int, bool) {
+	if !strings.HasPrefix(device, gpioDeviceSpecPrefix) {
+		return 0, false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(device[len(gpioDeviceSpecPrefix):]))
+	if err != nil || n < 0 {
+		return 0, false
+	}
+	return n, true
+}
+
+// watchGPIO polls a GPIO line's live level from debugfs and drives the same
+// tap/hold detector as the evdev path. Used for a button the firmware owns via
+// the gpiochip chardev — we can't request the line with libgpiod while it's
+// held, but debugfs still reports the live level, so we co-read it. The firmware
+// keeps reacting to the press; we add the hand raise. (Grab is meaningless here
+// — there's no exclusive-ownership handle for a polled line — so it's ignored.)
+func watchGPIO(cfg Config, toggler Toggler, line int) {
+	det := &detector{tapMax: tapMax, resetHold: resetHold}
+	var pressed, have bool
+	ticker := time.NewTicker(gpioPollInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		level, err := readGPIOLevel(line)
+		if err != nil {
+			log.Warnf("button: read GPIO %d: %s (retrying)", line, err)
+			return // back off and retry from run()
+		}
+		now := level == gpioActiveLowPressed
+		if !have {
+			pressed, have = now, true
+			continue
+		}
+		if now == pressed {
+			continue
+		}
+		pressed = now
+		value := int32(valueUp)
+		if now {
+			value = valueDown
+		}
+		switch det.feed(value, time.Now()) {
+		case gestureTap:
+			raised, err := toggler.ToggleHand()
+			if err != nil {
+				log.Errorf("button: hand-raise toggle failed: %s", err)
+			} else if raised {
+				log.Info("button: hand raised")
+			} else {
+				log.Info("button: hand lowered")
+			}
+		case gestureReset:
+			if cfg.OnFactoryReset != nil {
+				log.Warn("button: held past the reset threshold — running factory reset")
+				cfg.OnFactoryReset()
+			}
+		}
+	}
+}
+
+// readGPIOLevel returns "hi" or "lo" for global GPIO line n, read from the
+// kernel's debugfs gpio dump — which reports the live level even for a line
+// another process holds. Lines look like:
+//
+//	gpio-98  (                    |LinuxKeyMonitor3    ) in  lo
+//
+// after the "(...)" consumer block come <direction> <level> [flags].
+func readGPIOLevel(n int) (string, error) {
+	data, err := os.ReadFile(debugfsGPIO)
+	if err != nil {
+		return "", err
+	}
+	return parseGPIOLevel(string(data), n)
+}
+
+// parseGPIOLevel extracts the "hi"/"lo" level of line n from a debugfs gpio
+// dump. Split out for testing.
+func parseGPIOLevel(dump string, n int) (string, error) {
+	tag := fmt.Sprintf("gpio-%d ", n) // trailing space so gpio-9 never matches gpio-98
+	for _, ln := range strings.Split(dump, "\n") {
+		s := strings.TrimSpace(ln)
+		if !strings.HasPrefix(s, tag) {
+			continue
+		}
+		rest := s
+		if i := strings.LastIndex(s, ")"); i >= 0 {
+			rest = s[i+1:]
+		}
+		fields := strings.Fields(rest)
+		if len(fields) >= 2 {
+			return fields[1], nil // fields[0]=in/out, fields[1]=hi/lo
+		}
+		return "", fmt.Errorf("gpio-%d: no level in %q", n, s)
+	}
+	return "", fmt.Errorf("gpio-%d not present in the gpio dump", n)
 }
 
 // watchOnce opens (and optionally grabs) the device and reads events until an
