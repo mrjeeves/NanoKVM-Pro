@@ -482,7 +482,7 @@ const en = {
         cancelBtn: 'No'
       },
       mesh: {
-        title: 'Mesh',
+        title: 'AllMyStuff',
         loading: 'Loading...',
         queryFailed: 'Failed to get mesh status',
         disabled: 'The mesh bridge is disabled in the device configuration.',

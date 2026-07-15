@@ -458,7 +458,7 @@ const zh = {
         cancelBtn: '否'
       },
       mesh: {
-        title: 'Mesh',
+        title: 'AllMyStuff',
         loading: '加载中...',
         queryFailed: '获取 Mesh 状态失败',
         disabled: '设备配置中已禁用 Mesh 桥接。',
