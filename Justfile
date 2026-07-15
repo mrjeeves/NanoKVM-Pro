@@ -328,10 +328,16 @@ deploy ip:
     # target (same dir = same fs) and rename()-ing over it — safe even while the
     # old binary is executing (the live process keeps the old inode). No single
     # quotes inside this block (it is single-quoted for ssh).
+    #
+    # Decompress with gzip piped into tar, NOT `tar -xzf`: the Pro's userland has
+    # GNU tar today (so -z would work here), but the non-pro's tar is BusyBox,
+    # whose applet has no -z. Keep the two deploy recipes on the identical
+    # portable form — gzip is universally present and this works on both GNU and
+    # BusyBox tar — so a future Pro image on a slimmer rootfs can't regress.
     ssh root@{{ip}} '
       set -e
       d="$(mktemp -d -p /kvmapp)"
-      tar -xzf /kvmapp/nanokvm-pro-deploy.tar.gz -C "$d"
+      gzip -dc /kvmapp/nanokvm-pro-deploy.tar.gz | tar -xf - -C "$d"
       mkdir -p /kvmapp/system/bin /kvmapp/server
       install_swap() { cp -f "$1" "$2.deploytmp" && chmod +x "$2.deploytmp" && mv -f "$2.deploytmp" "$2"; }
       install_swap "$d/myownmesh"             /kvmapp/system/bin/myownmesh
