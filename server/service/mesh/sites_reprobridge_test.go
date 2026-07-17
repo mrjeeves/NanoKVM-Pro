@@ -75,7 +75,7 @@ func TestReproTunnelBridge(t *testing.T) {
 		return nil
 	}
 
-	host := newSiteHost(engine, port, send)
+	host := newSiteHost(engine, port, nil, send)
 	host.markRouteActive(route, peer)
 
 	var connSeq uint64

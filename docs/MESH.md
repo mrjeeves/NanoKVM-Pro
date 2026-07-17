@@ -130,6 +130,39 @@ Bearer` paths are preserved; a tunneled request can never hit the loopback
 bypass because its `RemoteAddr` is the mesh route string (a non-IP), so
 `ClientIP()` is empty for it.
 
+## The SSH site (remote shell + remote update)
+
+Alongside the web UI, presence advertises a second site: **SSH** (`tcp:22`,
+scheme `ssh`). The site host proxies that tunnel straight to the device's own
+`sshd` as raw TCP — **no auth bypass rides this path**; sshd still runs its
+own authentication on top of the mesh roster gate, so it is *stricter* than
+the web tunnel. The advertised set stays the allow-list: any other port is
+refused.
+
+To reach a KVM's shell from anywhere on the fleet:
+
+1. In AllMyStuff, open the **Sites** tab, find the KVM, and **Map** its
+   `SSH` entry. **Copy** gives you the local address (`localhost:<port>`).
+2. `ssh root@localhost -p <port>` — or update the device in place:
+
+   ```sh
+   just deploy localhost <port>     # full mesh build re-deploy over the tunnel
+   just verify localhost <port>
+   ```
+
+Every device-touching recipe (`deploy`, `install`, `reboot`, `verify`,
+`undeploy`) takes the port as an optional trailing argument, defaulting to
+plain LAN `22`. If SSH is disabled in the web UI, the tunnel dial fails and
+the connection just closes — enable SSH first.
+
+> **Limit — the OTA caveat still bites.** The site host lives in the mesh
+> *server* build, so the SSH site goes down together with the rest of the
+> mesh plane the moment a stock OTA overwrites `NanoKVM-Server` (the daemon
+> alone can't tunnel). Remote update over the SSH site therefore works for
+> everything *except* recovering from a stock OTA — don't run stock OTAs on
+> devices you can't reach on LAN, or you'll need someone on-site to re-run
+> `just deploy`.
+
 ## Configuration
 
 Add a `mesh` block to `/etc/kvm/server.yaml` (defaults shown):
@@ -204,10 +237,10 @@ in `.myownmesh-rev`. The `.sha256` is verified.
 
 `.myownmesh-rev` must pin a **MyOwnMesh release whose pipeline built the
 `myownmesh-linux-aarch64-musl.tar.gz` asset** (the `daemon-aarch64-musl` job).
-That job is new — releases before it (≤ v0.2.27) have no such asset. The pin
-here (`v0.2.28`) is the first release expected to carry it; update it if
-MyOwnMesh's actual release number differs. `just daemon` / the release workflow
-fail with a clear pointer (not a wrong build) until a matching release exists.
+That job landed in v0.2.28 — releases before it (≤ v0.2.27) have no such
+asset. The current pin (`v0.3.1`) carries it (verified in that release's
+assets). `just daemon` / the release workflow fail with a clear pointer (not a
+wrong build) if a future pin names a release without the asset.
 
 ### Cutting a release
 

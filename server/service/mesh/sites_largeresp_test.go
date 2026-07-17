@@ -51,7 +51,7 @@ func TestSiteTunnelServesLargeResponseIntact(t *testing.T) {
 		return nil
 	}
 
-	h := newSiteHost(engine, allowed, send)
+	h := newSiteHost(engine, allowed, nil, send)
 	h.markRouteActive(route, peer)
 
 	// Open the tunneled connection, then feed a plain HTTP/1.1 request for the
