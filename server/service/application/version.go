@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
+	"NanoKVM-Server/buildinfo"
 	"NanoKVM-Server/proto"
 
 	"github.com/gin-gonic/gin"
@@ -23,12 +22,15 @@ const githubLatestAPI = "https://api.github.com/repos/mrjeeves/NanoKVM-Pro/relea
 
 // GetVersion reports the running firmware version and, best-effort, the latest
 // version on our release channel (so the Update tab can show "up to date" vs
-// "update available"). A failed latest-lookup (no internet, rate limit) just
-// echoes the current version so the tab reads as current rather than nagging.
+// "update available"). The current version is OUR fork's version (buildinfo) —
+// NOT the Sipeed base image's /kvmapp/version, which is an unrelated upstream
+// 2.x and would make every comparison read "up to date". A failed
+// latest-lookup (no internet, rate limit) echoes the current version so the tab
+// reads as current rather than nagging.
 func (s *Service) GetVersion(c *gin.Context) {
 	var rsp proto.Response
 
-	currentVersion := getCurrentVersion()
+	currentVersion := buildinfo.Version
 
 	latestVersion := currentVersion
 	if latest, err := latestChannelVersion(); err == nil && latest != "" {
@@ -42,26 +44,9 @@ func (s *Service) GetVersion(c *gin.Context) {
 	log.Debugf("current version: %s, latest version: %s", currentVersion, latestVersion)
 }
 
-func getCurrentVersion() string {
-	defaultVersion := "v1.0.0"
-
-	versionFile := filepath.Join(AppDir, "version")
-	content, err := os.ReadFile(versionFile)
-	if err != nil {
-		return defaultVersion
-	}
-
-	version := strings.ReplaceAll(string(content), "\n", "")
-	if version == "" {
-		return defaultVersion
-	}
-
-	return version
-}
-
-// latestChannelVersion asks GitHub for our newest release's tag. The Pro's
-// current version is stored with a leading "v" (see getCurrentVersion), so the
-// tag is returned as-is for a clean semver compare on the client.
+// latestChannelVersion asks GitHub for our newest release's tag and returns it
+// without the leading "v", so it compares cleanly against the current fork
+// version (buildinfo.Version, which has no "v").
 func latestChannelVersion() (string, error) {
 	req, err := http.NewRequest("GET", githubLatestAPI, nil)
 	if err != nil {
@@ -91,5 +76,5 @@ func latestChannelVersion() (string, error) {
 	if err := json.Unmarshal(body, &release); err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(release.TagName), nil
+	return strings.TrimPrefix(strings.TrimSpace(release.TagName), "v"), nil
 }
