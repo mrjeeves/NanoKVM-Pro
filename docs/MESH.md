@@ -130,6 +130,32 @@ Bearer` paths are preserved; a tunneled request can never hit the loopback
 bypass because its `RemoteAddr` is the mesh route string (a non-IP), so
 `ClientIP()` is empty for it.
 
+## Firmware update (our channel, password-free over the mesh)
+
+Firmware updates come from **our** GitHub release channel — never Sipeed's CDN,
+and never SSH. The Sipeed stock update service (its `dpkg`-based online install
+and preview channel) is removed, both the routes and the web UI, so nothing can
+`dpkg -i` a stock build over `/kvmapp` and clobber our mesh server. In its
+place, `GET /api/application/version` and `POST /api/application/update` point
+at our channel, and the KVM's **Settings → Update** tab drives them.
+
+Both routes sit behind the normal `CheckToken` gate, which is the whole point
+of the mesh auth-bypass above: reached over the AllMyStuff mesh tunnel they need
+**no device password** (mesh-roster membership is the authorization), while a
+direct LAN caller still uses the KVM login. So an operator opens the KVM console
+over the mesh and clicks Update with no password; the update pulls our release
+bundle (`nanokvm-pro-mesh-aarch64.tar.gz`) for the newest release, verifies its
+`.sha256`, installs the server + web with the same atomic placement `just
+deploy` uses, and restarts the `nanokvm` unit.
+
+> The update endpoint lives in the mesh server, so it can install a new build
+> but cannot resurrect a server that was **already** replaced by the stock
+> non-mesh build (the mesh plane goes down with it). Removing the stock updater
+> is what keeps that from happening — the old OTA-clobber failure mode simply
+> can't be triggered anymore. A daemon bump still rides a full on-site `just
+> deploy`; a routine update ships only the server + web, so it never restarts
+> the daemon out from under the tunnel.
+
 ## Configuration
 
 Add a `mesh` block to `/etc/kvm/server.yaml` (defaults shown):
@@ -204,10 +230,10 @@ in `.myownmesh-rev`. The `.sha256` is verified.
 
 `.myownmesh-rev` must pin a **MyOwnMesh release whose pipeline built the
 `myownmesh-linux-aarch64-musl.tar.gz` asset** (the `daemon-aarch64-musl` job).
-That job is new — releases before it (≤ v0.2.27) have no such asset. The pin
-here (`v0.2.28`) is the first release expected to carry it; update it if
-MyOwnMesh's actual release number differs. `just daemon` / the release workflow
-fail with a clear pointer (not a wrong build) until a matching release exists.
+That job landed in v0.2.28 — releases before it (≤ v0.2.27) have no such
+asset. The current pin (`v0.3.1`) carries it (verified in that release's
+assets). `just daemon` / the release workflow fail with a clear pointer (not a
+wrong build) if a future pin names a release without the asset.
 
 ### Cutting a release
 
