@@ -274,9 +274,8 @@ fetch VERSION="latest":
     echo "Now: just deploy <device-ip>   (or use 'just install <device-ip>')"
 
 # Fetch the prebuilt device bundle (server + daemon) and deploy to a device.
-# `port` rides through to deploy for the mesh SSH-site path.
-install ip VERSION="latest" port="22": (fetch VERSION)
-    @just deploy {{ip}} {{port}}
+install ip VERSION="latest": (fetch VERSION)
+    @just deploy {{ip}}
 
 # Bump the advertised version, commit, push, then push the `vX.Y.Z` tag to
 # trigger the release workflow.
@@ -301,17 +300,12 @@ release VERSION:
 # and (re)start the services. The Pro is systemd, so we install the unit into
 # /etc/systemd/system, daemon-reload, enable+start myownmesh, then restart the
 # server so its bridge connects to the freshly-started daemon socket.
-# `port` defaults to plain LAN SSH. To update a device you can't reach
-# directly — including re-deploying after a stock OTA overwrote the server —
-# map its advertised SSH site in AllMyStuff (Sites tab → Map on the KVM's
-# "SSH" entry), then run against the tunnel:
-#   just deploy localhost <mapped-port>
 [doc("Copy the built server + daemon + web + systemd unit to a device and restart.")]
-deploy ip port="22":
+deploy ip:
     #!/usr/bin/env bash
     set -euo pipefail
     test -f server/NanoKVM-Server && test -f "{{daemon_dst}}" && test -d web/dist || { echo "❌ build first: just build-pro"; exit 1; }
-    echo "==> deploying to {{ip}}:{{port}}…"
+    echo "==> deploying to {{ip}}…"
     # Bundle the whole payload into ONE tarball → one scp + one ssh (so you type
     # the password twice, not once per file). CRITICAL: the daemon and server run
     # from these exact paths, and Linux refuses to overwrite a *running* executable
@@ -329,7 +323,7 @@ deploy ip port="22":
     tar -czf "$tmp/deploy.tar.gz" -C "$tmp" myownmesh NanoKVM-Server myownmesh-prestart.sh myownmesh.service web
     # Stage on /kvmapp (writable rootfs, same fs as the targets — so the swap is a
     # same-dir rename and there is no tmpfs size limit to worry about).
-    scp -P {{port}} "$tmp/deploy.tar.gz" root@{{ip}}:/kvmapp/nanokvm-pro-deploy.tar.gz
+    scp "$tmp/deploy.tar.gz" root@{{ip}}:/kvmapp/nanokvm-pro-deploy.tar.gz
     # Remote install: unpack, then install each binary by writing it beside its
     # target (same dir = same fs) and rename()-ing over it — safe even while the
     # old binary is executing (the live process keeps the old inode). No single
@@ -340,7 +334,7 @@ deploy ip port="22":
     # whose applet has no -z. Keep the two deploy recipes on the identical
     # portable form — gzip is universally present and this works on both GNU and
     # BusyBox tar — so a future Pro image on a slimmer rootfs can't regress.
-    ssh -p {{port}} root@{{ip}} '
+    ssh root@{{ip}} '
       set -e
       d="$(mktemp -d -p /kvmapp)"
       gzip -dc /kvmapp/nanokvm-pro-deploy.tar.gz | tar -xf - -C "$d"
@@ -367,18 +361,18 @@ deploy ip port="22":
       systemctl restart nanokvm
       echo "device: services restarted"
     '
-    echo "OK — just verify {{ip}} {{port}}"
+    echo "OK — just verify {{ip}}"
 
-reboot ip port="22":
-    @ssh -p {{port}} root@{{ip}} reboot || true
+reboot ip:
+    @ssh root@{{ip}} reboot || true
 
 # Daemon + bridge: both systemd units, persisted state, and both logs on a device.
-verify ip port="22":
-    @ssh -p {{port}} root@{{ip}} 'echo "--- myownmesh unit ---"; systemctl --no-pager status myownmesh 2>/dev/null | head -n 12 || echo "(no unit)"; echo "--- nanokvm unit ---"; systemctl --no-pager status nanokvm 2>/dev/null | head -n 8 || echo "(no unit)"; echo "--- state (/data/myownmesh) ---"; ls -la /data/myownmesh 2>/dev/null || echo "(none yet)"; echo "--- daemon log (journal) ---"; journalctl -u myownmesh --no-pager -n 30 2>/dev/null || echo "(none yet)"; echo "--- bridge log ---"; tail -n 30 /var/log/nanokvm-mesh.log 2>/dev/null || echo "(none yet)"'
+verify ip:
+    @ssh root@{{ip}} 'echo "--- myownmesh unit ---"; systemctl --no-pager status myownmesh 2>/dev/null | head -n 12 || echo "(no unit)"; echo "--- nanokvm unit ---"; systemctl --no-pager status nanokvm 2>/dev/null | head -n 8 || echo "(no unit)"; echo "--- state (/data/myownmesh) ---"; ls -la /data/myownmesh 2>/dev/null || echo "(none yet)"; echo "--- daemon log (journal) ---"; journalctl -u myownmesh --no-pager -n 30 2>/dev/null || echo "(none yet)"; echo "--- bridge log ---"; tail -n 30 /var/log/nanokvm-mesh.log 2>/dev/null || echo "(none yet)"'
 
 # Reversible undo on a device: stop+disable the daemon, remove the unit + helper.
-undeploy ip port="22":
-    @ssh -p {{port}} root@{{ip}} 'systemctl disable --now myownmesh 2>/dev/null; rm -f /etc/systemd/system/myownmesh.service /kvmapp/system/bin/myownmesh /kvmapp/system/bin/myownmesh-prestart.sh; systemctl daemon-reload; systemctl restart nanokvm' || true
+undeploy ip:
+    @ssh root@{{ip}} 'systemctl disable --now myownmesh 2>/dev/null; rm -f /etc/systemd/system/myownmesh.service /kvmapp/system/bin/myownmesh /kvmapp/system/bin/myownmesh-prestart.sh; systemctl daemon-reload; systemctl restart nanokvm' || true
 
 clean-pro:
     @rm -rf server/NanoKVM-Server {{daemon_dst}} web/dist

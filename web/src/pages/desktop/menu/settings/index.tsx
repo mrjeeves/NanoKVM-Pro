@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Badge, Modal, Tooltip } from 'antd';
+import { useState } from 'react';
+import { Modal, Tooltip } from 'antd';
 import clsx from 'clsx';
 import { useAtom, useSetAtom } from 'jotai';
 import {
@@ -13,10 +13,7 @@ import {
   WaypointsIcon
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import semver from 'semver';
 
-import * as api from '@/api/application.ts';
-import * as ls from '@/lib/localstorage.ts';
 import { isKeyboardEnableAtom } from '@/jotai/keyboard.ts';
 import { isSettingsOpenAtom, settingTabAtom, submenuOpenCountAtom } from '@/jotai/settings.ts';
 import { Tailscale as TailscaleIcon } from '@/components/icons/tailscale';
@@ -41,8 +38,10 @@ export const Settings = () => {
 
   const [isLocked, setIsLocked] = useState(false);
 
-  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
-
+  // The Update tab installs OUR firmware from OUR release channel (see ./update
+  // and the server's /api/application/update route), never cdn.sipeed.com — a
+  // stock update would clobber our mesh server build. The old CDN-polling
+  // "check for updates" nag on the gear is gone; the tab checks when opened.
   const tabs = [
     { id: 'about', icon: <BadgeInfoIcon size={16} />, component: <About /> },
     { id: 'appearance', icon: <PaletteIcon size={16} />, component: <Appearance /> },
@@ -62,36 +61,12 @@ export const Settings = () => {
     { id: 'account', icon: <UserRoundIcon size={16} />, component: <Account /> }
   ];
 
-  useEffect(() => {
-    const skip = ls.getSkipUpdate();
-    if (!skip) {
-      checkForUpdates();
-    }
-  }, []);
-
-  function checkForUpdates() {
-    api.getVersion().then((rsp: any) => {
-      if (rsp.code !== 0) {
-        return;
-      }
-
-      if (semver.gt(rsp.data.latest, rsp.data.current)) {
-        setIsUpdateAvailable(true);
-      }
-    });
-  }
-
   function changeTab(tab: string) {
     if (isLocked) {
       return;
     }
 
     setSettingTab(tab);
-
-    if (isUpdateAvailable && tab === 'update') {
-      setIsUpdateAvailable(false);
-      ls.setSkipUpdate(true);
-    }
   }
 
   function openModal() {
@@ -118,11 +93,9 @@ export const Settings = () => {
           className="flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded hover:bg-neutral-700/80"
           onClick={openModal}
         >
-          <Badge dot={isUpdateAvailable} color="blue" offset={[0, 2]}>
-            <div className="pt-[3px] text-neutral-300 hover:text-white">
-              <SettingsIcon size={18} />
-            </div>
-          </Badge>
+          <div className="pt-[3px] text-neutral-300 hover:text-white">
+            <SettingsIcon size={18} />
+          </div>
         </div>
       </Tooltip>
 
@@ -151,17 +124,9 @@ export const Settings = () => {
               >
                 <div className="h-[16px] w-[16px]">{tab.icon}</div>
 
-                {isUpdateAvailable && tab.id === 'update' ? (
-                  <Badge dot color="blue" offset={[6, 3]}>
-                    <span className="hidden truncate text-sm sm:block">
-                      {t(`settings.${tab.id}.title`)}
-                    </span>
-                  </Badge>
-                ) : (
-                  <span className="hidden truncate text-sm sm:block">
-                    {t(`settings.${tab.id}.title`)}
-                  </span>
-                )}
+                <span className="hidden truncate text-sm sm:block">
+                  {t(`settings.${tab.id}.title`)}
+                </span>
               </div>
             ))}
           </div>
