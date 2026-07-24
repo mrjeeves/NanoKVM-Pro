@@ -23,6 +23,14 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
   unrelated upstream `1.x` from `/kvmapp/version`.
 - **MyOwnMesh daemon pinned to v0.3.2** (`.myownmesh-rev`) — picks up the
   0.3.2 mesh-connectivity fixes.
+- **Over-the-air updates now ship the pinned daemon too.** Settings → Update
+  installs the bundled myownmesh and `systemctl restart myownmesh`es it
+  whenever the pinned binary actually changed (a sha256 compare), so a
+  daemon-side fix reaches the fleet over the mesh — previously an update swapped
+  only the server + web and a daemon bump needed an on-site `just deploy`. An
+  unchanged daemon is left completely untouched, so an ordinary update never
+  disturbs the mesh tunnel; when the daemon does change it is bounced after the
+  update response is sent and just before the `nanokvm` restart.
 
 ## 0.1.0
 
