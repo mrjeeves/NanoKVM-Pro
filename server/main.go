@@ -9,11 +9,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"NanoKVM-Server/buildinfo"
 	"NanoKVM-Server/common"
 	"NanoKVM-Server/config"
 	"NanoKVM-Server/logger"
 	"NanoKVM-Server/middleware"
 	"NanoKVM-Server/router"
+	"NanoKVM-Server/service/application"
 	"NanoKVM-Server/service/button"
 	"NanoKVM-Server/service/mesh"
 	"NanoKVM-Server/service/mesh/glue"
@@ -90,6 +92,13 @@ func run() {
 		bridge.SetVideoSource(glue.NewVideoSource())
 		bridge.SetInputSink(glue.NewInputSink())
 		go bridge.Start(make(chan struct{}))
+
+		// Converge onto the daemon this release pins. A device updated from an
+		// older server (whose updater installed only the server + web) boots
+		// here still running the previous daemon; this heals that once per
+		// version, out of band, without a manual deploy. A no-op on an ordinary
+		// boot once the marker is set.
+		go application.ReconcileDaemon(buildinfo.Version, conf.Mesh.DaemonBin, conf.Mesh.Home)
 
 		// Wire the physical user (USR) button to the CEC hand-raise. Off by
 		// default on the Pro (the USR node isn't confirmed); self-disabling if
