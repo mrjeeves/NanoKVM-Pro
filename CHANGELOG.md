@@ -30,7 +30,14 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
   only the server + web and a daemon bump needed an on-site `just deploy`. An
   unchanged daemon is left completely untouched, so an ordinary update never
   disturbs the mesh tunnel; when the daemon does change it is bounced after the
-  update response is sent and just before the `nanokvm` restart.
+  update response is sent and just before the `nanokvm` restart. Because that
+  logic lives in the server, a device updating _from_ an older server can't get
+  the daemon during the very update that installs this build — so the new server
+  also **reconciles its daemon once on startup**: if the installed binary
+  doesn't match the one this release pins, it fetches and swaps it in and
+  restarts the daemon, converging the fleet with no on-site deploy. The check
+  runs once per version (a marker under the mesh home dir), so ordinary boots do
+  nothing.
 
 ## 0.1.0
 
