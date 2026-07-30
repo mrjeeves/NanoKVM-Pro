@@ -1,0 +1,18 @@
+[Unit]
+Description=USB virtual-network DHCP (address the tethered host)
+Documentation=https://github.com/mrjeeves/NanoKVM-Pro
+# Deliberately NOT After/Wants=network-online.target, unlike usbnet-share:
+# handing the tethered host an address is exactly what has to work on a device
+# with no uplink at all, and on such a device network-online.target may never
+# be reached. Waiting for it would disable this in the one case it exists for.
+After=local-fs.target
+Wants=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usbdhcp.sh start
+ExecStop=/usr/local/bin/usbdhcp.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

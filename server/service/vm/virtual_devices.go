@@ -34,6 +34,11 @@ const (
 	// (usb0 → uplink NAT). Shipped by the image overlay; best-effort (always
 	// exits 0), so chaining it onto a toggle can't fail the toggle.
 	scriptUsbNet = "/usr/local/bin/usbnet-share.sh"
+	// scriptUsbDhcp hands the USB-tethered host an address. Without it the
+	// gadget comes up and the host's USB adapter sits unaddressed, so the KVM's
+	// own usb0 address is unreachable from the one machine that should always
+	// be able to see it. Best-effort like the above (always exits 0).
+	scriptUsbDhcp = "/usr/local/bin/usbdhcp.sh"
 )
 
 const (
@@ -141,10 +146,13 @@ func getNetworkCommands() []string {
 
 	// Bring internet sharing up/down with the gadget so the tether extends the
 	// host's connectivity instead of black-holing its default route.
+	// Address the host BEFORE sharing an uplink with it: the masquerade rule is
+	// scoped to usb0's subnet, which only exists once the interface is up and
+	// addressed.
 	if enabling {
-		cmd = append(cmd, scriptUsbNet+" start")
+		cmd = append(cmd, scriptUsbDhcp+" start", scriptUsbNet+" start")
 	} else {
-		cmd = append(cmd, scriptUsbNet+" stop")
+		cmd = append(cmd, scriptUsbNet+" stop", scriptUsbDhcp+" stop")
 	}
 	return cmd
 }
