@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"NanoKVM-Server/proto"
@@ -262,4 +263,63 @@ func isEmmcImagePresent() bool {
 func isFileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// usbNetAutoMarker records, under the mesh home dir, that the USB network was
+// auto-enabled for first claim. Its presence — not the flag file's — is what
+// makes that a one-time act.
+const usbNetAutoMarker = ".usbnet-auto"
+
+// EnsureUsbNetworkForClaim brings the USB network gadget up on a device nobody
+// has claimed yet, so the machine it is physically plugged into can reach it
+// over the cable and claim it there.
+//
+// This is the setup path for an appliance with no network: the USB gadget needs
+// no LAN, no router, no DHCP server and no Wi-Fi credentials, and the KVM's web
+// server already binds every interface, so the full API answers on it. Without
+// this a factory-fresh device is only reachable by first getting it onto a
+// network — the thing you often need the KVM to help you do.
+//
+// Deliberately once per device, tracked by a marker rather than by the flag
+// file. The flag's absence can't distinguish "never configured" from
+// "deliberately turned off", so keying on it would put the gadget back every
+// boot and overrule an operator who switched it off. The marker is written only
+// after the gadget is actually up, so a failed attempt retries next boot
+// instead of silently giving up. It lives under the mesh home dir, which a
+// reflash wipes — a re-imaged device should get the setup path again.
+//
+// It never turns the gadget OFF. Claiming over the USB link is the whole point,
+// and disabling on claim would cut the very connection the claim arrived on.
+//
+// Best-effort and self-silencing: every failure is logged and returns. Meant to
+// be run in its own goroutine — it shells out and bounces the USB gadget.
+func EnsureUsbNetworkForClaim(claimed bool, stateDir string) {
+	if claimed || stateDir == "" {
+		return
+	}
+	marker := filepath.Join(stateDir, usbNetAutoMarker)
+	if _, err := os.Stat(marker); err == nil {
+		return
+	}
+
+	// Already on (an image that ships it, or a flag placed by hand on the SD
+	// card): nothing to do, but record it so we never reconsider.
+	if !isVirtualNetworkMounted() {
+		// getNetworkCommands reads the CURRENT state, and we've just established
+		// it's off — so this is the enabling sequence. Same HID guard the toggle
+		// uses: recomposing the gadget tears down the HID functions with it.
+		if err := executeWithHidLock(getNetworkCommands()); err != nil {
+			log.Warnf("usb network auto-enable failed: %s", err)
+			return
+		}
+		log.Infof("usb network enabled for first claim — this KVM is reachable over its own USB cable")
+	}
+
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		log.Warnf("usb network auto-enable: create %s: %s", stateDir, err)
+		return
+	}
+	if err := os.WriteFile(marker, []byte("1\n"), 0o644); err != nil {
+		log.Warnf("usb network auto-enable: write %s: %s", marker, err)
+	}
 }
