@@ -299,8 +299,7 @@ const usbNetAutoMarker = ".usbnet-auto"
 // It never turns the gadget OFF. Claiming over the USB link is the whole point,
 // and disabling on claim would cut the very connection the claim arrived on.
 //
-// Best-effort and self-silencing: every failure is logged and returns. Meant to
-// be run in its own goroutine — it shells out and bounces the USB gadget.
+// Best-effort and self-silencing: every failure is logged and returns.
 func EnsureUsbNetworkForClaim(claimed bool, stateDir string) {
 	if claimed || stateDir == "" {
 		return
@@ -313,14 +312,21 @@ func EnsureUsbNetworkForClaim(claimed bool, stateDir string) {
 	// Already on (an image that ships it, or a flag placed by hand on the SD
 	// card): nothing to do, but record it so we never reconsider.
 	if !isVirtualNetworkMounted() {
-		// getNetworkCommands reads the CURRENT state, and we've just established
-		// it's off — so this is the enabling sequence. Same HID guard the toggle
-		// uses: recomposing the gadget tears down the HID functions with it.
-		if err := executeWithHidLock(getNetworkCommands()); err != nil {
-			log.Warnf("usb network auto-enable failed: %s", err)
+		// Write the flag ONLY; do NOT recompose the running gadget. Tearing one
+		// down is not something the usbdev script can actually do — it unbinds
+		// the UDC and leaves the configfs tree standing — so "enabling" live
+		// mutates a composite the attached host is using rather than rebuilding
+		// it, and that can take its keyboard and mouse out. Breaking the KVM's
+		// whole reason for existing to enable a convenience is a bad trade.
+		//
+		// The gadget is built cleanly once per boot from these flags, before
+		// this server starts, so writing the flag is enough. This image already
+		// ships overlay/boot/usb.ncm, so a factory device never reaches here.
+		if err := os.WriteFile(virtualNetwork, nil, 0o644); err != nil {
+			log.Warnf("usb network auto-enable: write %s: %s", virtualNetwork, err)
 			return
 		}
-		log.Infof("usb network enabled for first claim — this KVM is reachable over its own USB cable")
+		log.Infof("usb network enabled for first claim — takes effect on the next boot (the running gadget is left alone on purpose)")
 	}
 
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
