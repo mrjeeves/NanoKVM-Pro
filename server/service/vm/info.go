@@ -28,6 +28,27 @@ func GetSystemArch() (string, error) {
 	return arch, nil
 }
 
+// infoWebScheme and infoWebPort report how to reach THIS device directly: the
+// scheme and port of its own listener, for a browser opening one of the
+// addresses in GetInfo's `ips`. The mesh site advert answers a different
+// question — what the tunnel speaks, always plaintext — and using that one for a
+// direct link points a browser at http:// on a TLS port, which is exactly the
+// failure this device produces by default.
+func infoWebScheme() string {
+	if config.GetInstance().Proto == "https" {
+		return "https"
+	}
+	return "http"
+}
+
+func infoWebPort() int {
+	conf := config.GetInstance()
+	if conf.Proto == "https" {
+		return conf.Port.Https
+	}
+	return conf.Port.Http
+}
+
 func (s *Service) GetInfo(c *gin.Context) {
 	var rsp proto.Response
 
@@ -38,6 +59,8 @@ func (s *Service) GetInfo(c *gin.Context) {
 		Application:  getApplicationVersion(),
 		DeviceKey:    getDeviceKey(),
 		DeviceNumber: config.DeviceNumber(),
+		WebScheme:    infoWebScheme(),
+		WebPort:      infoWebPort(),
 	}
 
 	arch, _ := GetSystemArch()
