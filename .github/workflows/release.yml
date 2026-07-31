@@ -110,6 +110,20 @@ jobs:
           tar -xzf "/tmp/${dasset}" -C bundle            # -> bundle/myownmesh
           cp server/NanoKVM-Server bundle/NanoKVM-Server
           cp -a web/dist bundle/web                      # -> bundle/web (the SPA)
+          # The device-side helpers, in a tree that mirrors where they live.
+          # Named explicitly rather than copying the overlay wholesale: that
+          # also holds /boot/usb.ncm and a MaixPy config, and shipping those in
+          # an update would switch a USB interface on underneath a running
+          # deployment. Until this existed these files reached a device only by
+          # writing a new SD card, so an update delivered a server that expected
+          # them with no way to bring them.
+          O=support/scripts/build_image/overlay
+          mkdir -p bundle/overlay/usr/local/bin bundle/overlay/etc/systemd/system
+          cp $O/usr/local/bin/usbdhcp.sh          bundle/overlay/usr/local/bin/
+          cp $O/usr/local/bin/usbnet-share.sh     bundle/overlay/usr/local/bin/
+          cp $O/etc/systemd/system/usbdhcp.service      bundle/overlay/etc/systemd/system/
+          cp $O/etc/systemd/system/usbnet-share.service bundle/overlay/etc/systemd/system/
+          chmod +x bundle/overlay/usr/local/bin/*.sh
           chmod +x bundle/NanoKVM-Server bundle/myownmesh
           file bundle/myownmesh bundle/NanoKVM-Server
           test -f bundle/web/index.html
@@ -120,7 +134,7 @@ jobs:
         run: |
           set -e
           NAME="nanokvm-pro-mesh-aarch64"
-          tar -czf "${NAME}.tar.gz" -C bundle NanoKVM-Server myownmesh web
+          tar -czf "${NAME}.tar.gz" -C bundle NanoKVM-Server myownmesh web overlay
           sha256sum "${NAME}.tar.gz" > "${NAME}.tar.gz.sha256"
           ls -la "${NAME}.tar.gz"*
 

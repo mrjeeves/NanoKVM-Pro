@@ -94,12 +94,14 @@ func run() {
 		bridge.SetInputSink(glue.NewInputSink())
 		go bridge.Start(make(chan struct{}))
 
-		// Converge onto the daemon this release pins. A device updated from an
-		// older server (whose updater installed only the server + web) boots
-		// here still running the previous daemon; this heals that once per
-		// version, out of band, without a manual deploy. A no-op on an ordinary
-		// boot once the marker is set.
-		go application.ReconcileDaemon(buildinfo.Version, conf.Mesh.DaemonBin, conf.Mesh.Home)
+		// Converge onto the rest of this release's payload — the pinned daemon
+		// and the device-side helpers (systemd units and the scripts they run).
+		// A device updated from an older server is updated by that older
+		// server's updater, which installs only the parts it knows about, so
+		// the new server boots with pieces of its own release missing. This
+		// heals that once per version, out of band, without writing a new SD
+		// card. A no-op on an ordinary boot once the marker is set.
+		go application.ReconcileRelease(buildinfo.Version, conf.Mesh.DaemonBin, conf.Mesh.Home)
 
 		// A device nobody has claimed yet needs to be reachable before it has a
 		// network — which is the whole difficulty, since getting it onto one is

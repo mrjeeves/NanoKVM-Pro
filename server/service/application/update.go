@@ -37,10 +37,15 @@ const (
 	serverRestartCmd = "systemctl restart nanokvm"
 	daemonRestartCmd = "systemctl restart myownmesh"
 
-	// daemonSyncMarker records, under the mesh home dir, the fork version whose
-	// daemon the startup reconcile has already ensured — so it runs once per
+	// releaseSyncMarker records, under the mesh home dir, the fork version whose
+	// payload the startup reconcile has already ensured — so it runs once per
 	// version, not on every boot.
-	daemonSyncMarker = ".daemon-sync"
+	//
+	// The filename still says "daemon" because it IS the marker devices in the
+	// field already carry, and the reconcile it gates has only widened. Renaming
+	// it would make every deployed device treat its version as unreconciled and
+	// re-download a bundle to learn it was already current.
+	releaseSyncMarker = ".daemon-sync"
 )
 
 // tagPattern bounds an operator-supplied version to a release-tag shape
@@ -410,7 +415,147 @@ func installBundle(bundleDir, appDir string) (bool, error) {
 	if err := chmodTree(webDst, 0o755); err != nil {
 		return false, err
 	}
+
+	// The device-side helpers (systemd units + the scripts they run) ride the
+	// same bundle. Best-effort and last: the server and web are already in, and
+	// an overlay failure must not fail an update that otherwise succeeded.
+	installOverlay(bundleDir)
 	return swapDaemon, nil
+}
+
+// overlayRoot is where the bundle's overlay/ tree is written — the filesystem
+// root, since the tree mirrors absolute paths. Indirected so a test can point it
+// at a temp dir instead of writing to the real /etc and /usr.
+const overlayRoot = "/"
+
+var overlayRootForTest = overlayRoot
+
+// systemdUnitDir and systemdWantsDir are where a unit lives and where the
+// symlink that makes it run at boot lives. The image build wires the symlink
+// directly rather than calling `systemctl enable` (an offline chroot has no
+// dbus); we do the same, for the same reason it works — a wants symlink IS what
+// enable creates.
+const (
+	systemdUnitDir  = "etc/systemd/system"
+	systemdWantsDir = "etc/systemd/system/multi-user.target.wants"
+)
+
+// installOverlay writes the bundle's `overlay/` tree onto the device, mirroring
+// the paths the image build lays down, and reports how many files changed.
+//
+// This is the Pro's half of a gap the over-the-air path could not cover at all.
+// The helper scripts and their units — /usr/local/bin/usbdhcp.sh and
+// usbdhcp.service, say — shipped ONLY in the image overlay, so they reached a
+// device by writing a new SD card and by no other means. An update delivered a
+// server that expected them and had no way to bring them, which fails in the
+// worst way: silently, on exactly the devices already in the field.
+//
+// What ships is decided in CI, not here: the release workflow copies named
+// files into overlay/. That matters — the image overlay also holds /boot/usb.ncm
+// and a MaixPy config, and shipping those in an update would switch a USB
+// interface on underneath a running deployment.
+//
+// Only files that differ are written, so a re-run (the startup reconcile, an
+// update to the same version) touches nothing. Units are reloaded and enabled,
+// never STARTED: their effects belong to a boot, and one of them reconfigures
+// the USB link the update may have arrived over.
+func installOverlay(bundleDir string) int {
+	src := filepath.Join(bundleDir, "overlay")
+	if !isDir(src) {
+		return 0 // a bundle from an older release — nothing to do
+	}
+	changed := 0
+	var units []string
+	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		rel, relErr := filepath.Rel(src, path)
+		if relErr != nil {
+			return nil
+		}
+		dst := filepath.Join(overlayRootForTest, rel)
+		// A missing destination reads as "differs", which is the case this
+		// exists for: a NEW helper the server depends on.
+		if differs, dErr := filesDiffer(path, dst); dErr == nil && !differs {
+			if strings.HasSuffix(rel, ".service") {
+				units = append(units, rel) // unchanged, but still needs enabling
+			}
+			return nil
+		}
+		// A unit file must not be executable; everything else here is a script
+		// that systemd (or the server) execs, and a lost +x bit is the same as
+		// a missing file.
+		mode := os.FileMode(0o755)
+		if strings.HasSuffix(rel, ".service") {
+			mode = 0o644
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			log.Warnf("update: overlay mkdir for %s: %s", rel, err)
+			return nil
+		}
+		if err := copyFileMode(path, dst, mode); err != nil {
+			log.Warnf("update: install %s: %s", rel, err)
+			return nil
+		}
+		log.Infof("update: installed %s (takes effect on the next boot)", rel)
+		changed++
+		if strings.HasSuffix(rel, ".service") {
+			units = append(units, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Warnf("update: overlay walk: %s", err)
+	}
+
+	enabled := 0
+	for _, rel := range units {
+		if enableUnit(rel) {
+			enabled++
+		}
+	}
+	if changed > 0 || enabled > 0 {
+		// Pick up changed unit files. Best-effort: on a device where systemd
+		// isn't the init (or isn't reachable) the files are still in place for
+		// the next boot.
+		_ = exec.Command("systemctl", "daemon-reload").Run()
+	}
+	return changed
+}
+
+// enableUnit makes a unit run at boot by creating the multi-user.target wants
+// symlink, exactly as the image build does. Reports whether it created one.
+//
+// Only units that ask for it: a unit with no `WantedBy=multi-user.target` is
+// one something else pulls in, and enabling it anyway would start it in a
+// context its author didn't choose. An existing symlink is left alone — that
+// includes one an operator deleted and then re-created, and, deliberately, we
+// never remove one either.
+func enableUnit(rel string) bool {
+	if filepath.Dir(rel) != systemdUnitDir {
+		return false
+	}
+	name := filepath.Base(rel)
+	unit := filepath.Join(overlayRootForTest, rel)
+	body, err := os.ReadFile(unit)
+	if err != nil || !strings.Contains(string(body), "WantedBy=multi-user.target") {
+		return false
+	}
+	link := filepath.Join(overlayRootForTest, systemdWantsDir, name)
+	if _, err := os.Lstat(link); err == nil {
+		return false // already enabled
+	}
+	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+		log.Warnf("update: wants dir for %s: %s", name, err)
+		return false
+	}
+	if err := os.Symlink(filepath.Join("/", rel), link); err != nil {
+		log.Warnf("update: enable %s: %s", name, err)
+		return false
+	}
+	log.Infof("update: enabled %s at boot", name)
+	return true
 }
 
 // chmodTree sets mode on root and everything under it — the served web tree,
