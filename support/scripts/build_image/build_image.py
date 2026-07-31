@@ -92,6 +92,18 @@ def replace_axp(axp_file, replacements, output=None):
         # `systemctl enable`). The unit self-guards on the virtual-network flag,
         # so it no-ops unless the network is on. Matches the wants-symlink pattern
         # the service-disable lines above use.
+        # Serve DHCP on usb0. The lease file provisioned above has had no config
+        # and nothing to start it, so the tethered host's USB adapter came up
+        # unaddressed and could not reach the KVM at all. Wired the same
+        # wants-symlink way, but NOT gated on network-online.target — see the
+        # unit: this is precisely what has to work on a device with no uplink.
+        run_chroot_commands(mount_point=mount_point, commands=["chmod +x /usr/local/bin/usbdhcp.sh"])
+        run_chroot_commands(mount_point=mount_point, commands=[
+            "mkdir -p /etc/systemd/system/multi-user.target.wants && "
+            "ln -sf /etc/systemd/system/usbdhcp.service "
+            "/etc/systemd/system/multi-user.target.wants/usbdhcp.service"
+        ])
+
         run_chroot_commands(mount_point=mount_point, commands=["chmod +x /usr/local/bin/usbnet-share.sh"])
         run_chroot_commands(mount_point=mount_point, commands=[
             "mkdir -p /etc/systemd/system/multi-user.target.wants && "
