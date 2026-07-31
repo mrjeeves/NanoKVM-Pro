@@ -6,6 +6,12 @@ Documentation=https://github.com/mrjeeves/NanoKVM-Pro
 # uplink is harmless; the web UI's Virtual Network toggle re-applies it anyway.
 After=network-online.target
 Wants=network-online.target
+# And after usb0 has its address. The masquerade is scoped to the usb0 subnet
+# and is now SKIPPED outright when that address is missing (see the script), so
+# losing this race means no sharing at all rather than a rule broad enough to
+# break the device's own DNS. usbdhcp is what puts the address there.
+After=usbdhcp.service
+Wants=usbdhcp.service
 
 [Service]
 Type=oneshot

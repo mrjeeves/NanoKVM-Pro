@@ -52,24 +52,46 @@ start() {
     iptables -A "$NAT_CHAIN" -o "$IF" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null
 
     # nat/POSTROUTING: masquerade usb0-sourced traffic as it leaves the uplink.
+    #
+    # The source scope is not optional, and there is NO fallback without it.
+    #
+    # This used to install `! -o usb0 -j MASQUERADE` whenever usb0 hadn't got an
+    # address yet — which at boot is always, since the address arrives after
+    # this runs. POSTROUTING sees every outbound packet, including
+    # locally-generated ones, so that rule masqueraded the device's own
+    # loopback traffic too. A DNS query to systemd-resolved's stub at
+    # 127.0.0.53 then had its source rewritten: MASQUERADE picks an address via
+    # inet_select_addr at universe scope, 127.0.0.1 is scope host and doesn't
+    # qualify, so the kernel substituted eth0's. resolved dropped every packet
+    # ("Got packet on unexpected (i.e. non-localhost) IP range"), by design, and
+    # the whole device lost name resolution — no update checks, no relays, no
+    # NTP — while `resolvectl` looked healthy because it answers over D-Bus and
+    # never touches the stub.
+    #
+    # The old comment defended the fallback as "broader, still correct, since
+    # the FORWARD chain only ever admits usb0-originated flows". That is the
+    # error: FORWARD governs *forwarded* traffic, and locally-generated packets
+    # never traverse it. Nothing about the filter table constrains what
+    # POSTROUTING masquerades.
+    #
+    # So: no address, no NAT. Sharing that isn't up yet costs the tethered host
+    # its uplink; a rule this broad costs the KVM its own DNS, which is far
+    # worse and much harder to see.
     ensure_chain nat "$NAT_CHAIN" POSTROUTING
-    # Give the gadget a moment to gain its address on a fresh bring-up, then
-    # scope the masquerade to the usb0 subnet (iptables masks host bits, so the
-    # interface CIDR names the subnet). If no address surfaces, fall back to an
-    # interface-scoped rule — broader, still correct, since the FORWARD chain
-    # only ever admits usb0-originated flows.
     cidr=$(usb_cidr)
     i=0
-    while [ -z "$cidr" ] && [ "$i" -lt 3 ]; do
+    while [ -z "$cidr" ] && [ "$i" -lt 10 ]; do
         sleep 1; i=$((i + 1)); cidr=$(usb_cidr)
     done
-    if [ -n "$cidr" ]; then
-        iptables -t nat -A "$NAT_CHAIN" -s "$cidr" ! -o "$IF" -j MASQUERADE 2>/dev/null
-    else
-        echo "usbnet-share: $IF has no IPv4 address yet; using interface-scoped NAT"
-        iptables -t nat -A "$NAT_CHAIN" ! -o "$IF" -j MASQUERADE 2>/dev/null
+    if [ -z "$cidr" ]; then
+        echo "usbnet-share: $IF has no IPv4 address; NOT masquerading (a rule without"
+        echo "usbnet-share: a source scope would rewrite this device's own traffic)"
+        return 0
     fi
-    echo "usbnet-share: internet sharing enabled for $IF (${cidr:-no-addr})"
+    # `! -o lo` is belt-and-braces: the source scope already excludes loopback,
+    # and after the above it stays excluded even if someone widens the source.
+    iptables -t nat -A "$NAT_CHAIN" -s "$cidr" ! -o "$IF" ! -o lo -j MASQUERADE 2>/dev/null
+    echo "usbnet-share: internet sharing enabled for $IF ($cidr)"
 }
 
 stop() {
