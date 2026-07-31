@@ -320,7 +320,19 @@ deploy ip:
     cp "{{unit_src}}"         "$tmp/myownmesh.service"
     mkdir -p "$tmp/web"
     cp -a web/dist/.          "$tmp/web/"
-    tar -czf "$tmp/deploy.tar.gz" -C "$tmp" myownmesh NanoKVM-Server myownmesh-prestart.sh myownmesh.service web
+    # The device-side helpers, in a tree mirroring where they live. These reach a
+    # device ONLY by image flash or the release bundle otherwise — a deploy that
+    # ships a server expecting them and cannot bring them is how a fix sits in a
+    # branch looking applied. Named explicitly rather than copying the overlay
+    # wholesale: it also holds /boot/usb.ncm and a MaixPy config, and pushing
+    # those would switch a USB interface on underneath a running deployment.
+    O=support/scripts/build_image/overlay
+    mkdir -p "$tmp/overlay/usr/local/bin" "$tmp/overlay/etc/systemd/system"
+    cp $O/usr/local/bin/usbdhcp.sh                "$tmp/overlay/usr/local/bin/"
+    cp $O/usr/local/bin/usbnet-share.sh           "$tmp/overlay/usr/local/bin/"
+    cp $O/etc/systemd/system/usbdhcp.service      "$tmp/overlay/etc/systemd/system/"
+    cp $O/etc/systemd/system/usbnet-share.service "$tmp/overlay/etc/systemd/system/"
+    tar -czf "$tmp/deploy.tar.gz" -C "$tmp" myownmesh NanoKVM-Server myownmesh-prestart.sh myownmesh.service web overlay
     # Stage on /kvmapp (writable rootfs, same fs as the targets — so the swap is a
     # same-dir rename and there is no tmpfs size limit to worry about).
     scp "$tmp/deploy.tar.gz" root@{{ip}}:/kvmapp/nanokvm-pro-deploy.tar.gz
@@ -354,6 +366,21 @@ deploy ip:
       [ -d /kvmapp/server/web ] && mv /kvmapp/server/web /kvmapp/server/web.old
       mv /kvmapp/server/web.new /kvmapp/server/web
       rm -rf /kvmapp/server/web.old
+      # Device-side helpers. Scripts executable, units not; the wants symlink is
+      # what makes a unit run at boot, wired directly the same way the image
+      # build does it. Units are NOT started here: their effects belong to a
+      # boot, and one of them reconfigures the USB link this deploy may have
+      # arrived over.
+      if [ -d "$d/overlay" ]; then
+        cp -f "$d/overlay/usr/local/bin/"*.sh /usr/local/bin/
+        chmod +x /usr/local/bin/usbdhcp.sh /usr/local/bin/usbnet-share.sh
+        cp -f "$d/overlay/etc/systemd/system/"*.service /etc/systemd/system/
+        mkdir -p /etc/systemd/system/multi-user.target.wants
+        for u in usbdhcp.service usbnet-share.service; do
+          ln -sf /etc/systemd/system/$u /etc/systemd/system/multi-user.target.wants/$u
+        done
+        echo "device: installed usb helpers (active after a reboot)"
+      fi
       rm -rf "$d" /kvmapp/nanokvm-pro-deploy.tar.gz
       systemctl daemon-reload
       systemctl enable myownmesh >/dev/null 2>&1 || true
@@ -362,6 +389,7 @@ deploy ip:
       echo "device: services restarted"
     '
     echo "OK — just verify {{ip}}"
+    echo "note: usb helper changes take effect on a reboot — just reboot {{ip}}"
 
 reboot ip:
     @ssh root@{{ip}} reboot || true
