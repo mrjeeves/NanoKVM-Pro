@@ -13,6 +13,30 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
 
 ## Unreleased
 
+- **Over-the-air updates can now deliver the device-side helpers at all.** The
+  helper scripts and their systemd units — `/usr/local/bin/usbdhcp.sh` and
+  `usbdhcp.service`, say — shipped only in the image overlay, so they reached a
+  device by writing a new SD card and by no other means. An update delivered a
+  server that expected them with no way to bring them, which fails silently and
+  on exactly the devices already in the field. The bundle now carries an
+  `overlay/` tree mirroring where the files live; an update installs it, wires
+  the `multi-user.target` wants symlink for any unit that asks for one (the same
+  thing the image build does — an offline chroot has no dbus for `systemctl
+  enable`), and reloads systemd. What ships is named explicitly in CI rather
+  than copied wholesale: the image overlay also holds `/boot/usb.ncm` and a
+  MaixPy config, and shipping those in an update would switch a USB interface on
+  underneath a running deployment.
+- **The startup reconcile covers those helpers too, not just the daemon.** The
+  code that performs an update is the code already on the device, so a device
+  updating _from_ an older server is updated by that server's updater — which
+  installs only the parts it knows about and ignores an `overlay/` it has never
+  heard of. The build that adds the overlay therefore can't deliver it during
+  the very update that installs it. The startup reconcile, which already fetches
+  this exact version's bundle to heal the identical daemon gap, now installs any
+  helper that differs as well, closing it in one hop instead of two releases.
+  Files are written only when they actually differ, and units are enabled but
+  never started: their effects belong to a boot, and one of them reconfigures
+  the USB link the update may have arrived over.
 - **Firmware updates run off our own version and release channel.** The stock
   Sipeed updater — a `dpkg` install over `/kvmapp` that clobbers our mesh
   server — is removed, both the web UI and the server routes. Settings → Update
