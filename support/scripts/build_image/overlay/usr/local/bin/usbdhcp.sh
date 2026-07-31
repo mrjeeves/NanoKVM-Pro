@@ -96,6 +96,13 @@ stop_quiet() {
         kill "$(cat "$PIDFILE")" 2>/dev/null
         rm -f "$PIDFILE"
     fi
+    # Sweep anything the pidfile missed: the server writes it a moment AFTER
+    # forking, so two starts close together race, the second kills nothing, and
+    # two servers end up answering on one link. Conflicting leases are worse
+    # than none — it presents as the host intermittently getting no address.
+    for _p in $(pgrep -f "udhcpd -S $CONF" 2>/dev/null) $(pgrep -f "dnsmasq .*$IF" 2>/dev/null); do
+        kill "$_p" 2>/dev/null
+    done
 }
 
 stop() {
