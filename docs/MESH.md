@@ -250,7 +250,7 @@ in `.myownmesh-rev`. The `.sha256` is verified.
 `.myownmesh-rev` must pin a **MyOwnMesh release whose pipeline built the
 `myownmesh-linux-aarch64-musl.tar.gz` asset** (the `daemon-aarch64-musl` job).
 That job landed in v0.2.28 — releases before it (≤ v0.2.27) have no such
-asset. The current pin (`v0.3.2`) carries it (verified in that release's
+asset. The current pin (`v0.3.3`) carries it (verified in that release's
 assets). `just daemon` / the release workflow fail with a clear pointer (not a
 wrong build) if a future pin names a release without the asset.
 
