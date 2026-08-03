@@ -49,6 +49,28 @@ default: help
 help:
     @just --list
 
+# Match the AllMyStuff clean-checkout contract: discard local edits, fetch every
+# remote branch, and recover automatically when the current branch was merged
+# and deleted on origin.
+[doc("Discard local changes + pull + fetch all; falls back to the default branch when yours is gone on origin.")]
+pull:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    git reset --hard HEAD
+    git fetch --all --prune
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    if ! git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+      default=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD | sed 's|^origin/||' || true)
+      default=${default:-main}
+      echo "→ origin no longer has '$branch' (merged & deleted?) — switching to '$default'"
+      git checkout "$default"
+    fi
+    git pull
+
+[doc("just pull (clean + fetch all), then git checkout (e.g. `just checkout main`).")]
+checkout *args: pull
+    @git checkout {{args}}
+
 # ── Development: format, vet, and test the Go server ───────────────────────────
 # The app-repo dev loop (fmt / fmt-check / lint / test / check), scoped to the
 # CGO-free Go packages (config, service/mesh, service/button) so it runs on any
@@ -198,6 +220,10 @@ build-web:
 [doc("Build a complete device image: server + web UI + pinned daemon.")]
 build-pro: build-server daemon build-web
 
+# The standard project entry point; keep build-pro as the descriptive alias.
+[doc("Build a complete device image (server + web + daemon).")]
+build: build-pro
+
 # The daemon is never built here — MyOwnMesh cross-compiles + publishes it, and
 # this fails with a clear pointer (not a wrong build) if the pinned release has
 # no aarch64-musl asset yet.
@@ -273,7 +299,7 @@ fetch VERSION="latest":
     echo "OK -> server/NanoKVM-Server + {{daemon_dst}} + web/dist"
     echo "Now: just deploy <device-ip>   (or use 'just install <device-ip>')"
 
-# Fetch the prebuilt device bundle (server + daemon) and deploy to a device.
+# Fetch the prebuilt device bundle, deploy it, and reboot the device.
 install ip VERSION="latest": (fetch VERSION)
     @just deploy {{ip}}
 
@@ -296,11 +322,9 @@ release VERSION:
     echo "  It publishes nanokvm-pro-mesh-aarch64.tar.gz (server + web + pinned daemon)."
     echo "  Then: just install <device-ip>   (downloads that bundle and deploys)"
 
-# Copy the complete device build (server + daemon + systemd unit) to a device
-# and (re)start the services. The Pro is systemd, so we install the unit into
-# /etc/systemd/system, daemon-reload, enable+start myownmesh, then restart the
-# server so its bridge connects to the freshly-started daemon socket.
-[doc("Copy the built server + daemon + web + systemd unit to a device and restart.")]
+# Copy the complete device build (server + daemon + systemd unit) to a device,
+# then reboot it so the new services and USB helpers all start together.
+[doc("Deploy the complete device bundle, then reboot the device.")]
 deploy ip:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -388,8 +412,8 @@ deploy ip:
       systemctl restart nanokvm
       echo "device: services restarted"
     '
-    echo "OK — just verify {{ip}}"
-    echo "note: usb helper changes take effect on a reboot — just reboot {{ip}}"
+    just reboot {{ip}}
+    echo "OK — device reboot requested; run 'just verify {{ip}}' after it returns"
 
 reboot ip:
     @ssh root@{{ip}} reboot || true
