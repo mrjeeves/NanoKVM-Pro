@@ -30,8 +30,8 @@ const da = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for AllMyKVM',
-      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for CEC KVM',
+      success: 'Please check the network status of CEC KVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -92,7 +92,7 @@ const da = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'Terminal til AllMyKVM',
+      nanokvm: 'Terminal til CEC KVM',
       serial: 'Terminal til seriel port',
       serialPort: 'Serial port',
       serialPortPlaceholder: 'Angiv seriel port',
@@ -116,14 +116,14 @@ const da = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Om AllMyKVM',
+        title: 'Om CEC KVM',
         information: 'Information',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Program version',
-        applicationTip: 'AllMyKVM web application version',
+        applicationTip: 'CEC KVM web application version',
         image: 'Firmware version',
-        imageTip: 'AllMyKVM system image version',
+        imageTip: 'CEC KVM system image version',
         deviceKey: 'Enhedsnøgle',
         community: 'Fællesskab',
         pikvm: {

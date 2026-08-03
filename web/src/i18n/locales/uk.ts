@@ -73,7 +73,7 @@ const uk = {
       resetHid: 'Скинути HID',
       hidOnly: {
         title: 'Режим лише HID',
-        desc: 'Якщо ваша миша та клавіатура перестають відповідати та скинути HID, це не допомагає, це може бути проблемою сумісності між AllMyKVM та пристроєм. Спробуйте ввімкнути режим "лише HID" лише для кращої сумісності.',
+        desc: 'Якщо ваша миша та клавіатура перестають відповідати та скинути HID, це не допомагає, це може бути проблемою сумісності між CEC KVM та пристроєм. Спробуйте ввімкнути режим "лише HID" лише для кращої сумісності.',
         tip1: 'Увімкнення режиму "лише HID" демонтує віртуальний U-диск і віртуальну мережу',
         tip2: 'У режимі "лише HID" монтування образів буде вимкнено',
         enable: 'Увімкнути режим "лише HID"',
@@ -107,7 +107,7 @@ const uk = {
     },
     terminal: {
       title: 'Термінал',
-      nanokvm: 'Термінал AllMyKVM',
+      nanokvm: 'Термінал CEC KVM',
       serial: 'Термінал послідовного порту',
       serialPort: 'Послідовний порт',
       serialPortPlaceholder: 'Будь ласка, введіть послідовний порт',
@@ -153,14 +153,14 @@ const uk = {
     settings: {
       title: 'Налаштування',
       about: {
-        title: 'Про AllMyKVM',
+        title: 'Про CEC KVM',
         information: 'Інформація',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Версія додатка',
-        applicationTip: 'Версія веб-додатка AllMyKVM',
+        applicationTip: 'Версія веб-додатка CEC KVM',
         image: 'Версія образу',
-        imageTip: 'Версія системного образу AllMyKVM',
+        imageTip: 'Версія системного образу CEC KVM',
         deviceKey: 'Ключ пристрою',
         community: 'Спільнота',
         hostname: "Ім'я вузла",
@@ -238,8 +238,8 @@ const uk = {
         download: 'Завантажте',
         package: 'пакет встановлення',
         unzip: 'та розпакуйте його',
-        upTailscale: 'Завантажте Tailscale до каталогу /usr/bin/ на AllMyKVM',
-        upTailscaled: 'Завантажте Tailscaled до каталогу /usr/sbin/ на AllMyKVM',
+        upTailscale: 'Завантажте Tailscale до каталогу /usr/bin/ на CEC KVM',
+        upTailscaled: 'Завантажте Tailscaled до каталогу /usr/sbin/ на CEC KVM',
         refresh: 'Оновіть поточну сторінку',
         notLogin:
           "Пристрій ще не прив'язаний. Будь ласка, увійдіть і прив'яжіть цей пристрій до вашого облікового запису.",

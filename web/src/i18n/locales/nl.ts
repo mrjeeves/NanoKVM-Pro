@@ -31,8 +31,8 @@ const nl = {
     },
     wifi: {
       title: 'Wifi',
-      description: 'Wifi configureren voor AllMyKVM',
-      success: 'Controleer de netwerkstatus van AllMyKVM en bezoek het nieuwe IP-adres.',
+      description: 'Wifi configureren voor CEC KVM',
+      success: 'Controleer de netwerkstatus van CEC KVM en bezoek het nieuwe IP-adres.',
       failed: 'De bewerking is mislukt. Probeer het opnieuw.',
       confirmBtn: 'Ok',
       finishBtn: 'Gereed'
@@ -94,7 +94,7 @@ const nl = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'AllMyKVM Terminal',
+      nanokvm: 'CEC KVM Terminal',
       serial: 'Seriële poort terminal',
       serialPort: 'Seriële poort',
       serialPortPlaceholder: 'Voer de seriële poort in',
@@ -118,14 +118,14 @@ const nl = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Over AllMyKVM',
+        title: 'Over CEC KVM',
         information: 'Informatie',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Applicatie versie',
-        applicationTip: 'AllMyKVM web application version',
+        applicationTip: 'CEC KVM web application version',
         image: 'Image versie',
-        imageTip: 'AllMyKVM system image version',
+        imageTip: 'CEC KVM system image version',
         deviceKey: 'Apparaat sleutel',
         community: 'Community'
       },
@@ -174,8 +174,8 @@ const nl = {
         download: 'Download het',
         package: 'installatiepakket',
         unzip: 'en pak het uit',
-        upTailscale: 'Upload tailscale naar AllMyKVM directory /usr/bin/',
-        upTailscaled: 'Upload tailscaled naar AllMyKVM directory /usr/sbin/',
+        upTailscale: 'Upload tailscale naar CEC KVM directory /usr/bin/',
+        upTailscaled: 'Upload tailscaled naar CEC KVM directory /usr/sbin/',
         refresh: 'Vernieuw huidige pagina',
         notLogin:
           'Het apparaat is nog niet gekoppeld. Log in en koppel dit apparaat aan uw account.',

@@ -29,8 +29,8 @@ const th = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'ตั้งค้า Wi-Fi สำหรับ AllMyKVM',
-      success: 'กรุณาตรวจสอบสถานะเครื่องข่ายของ AllMyKVM และไปที่ IP address ใหม่',
+      description: 'ตั้งค้า Wi-Fi สำหรับ CEC KVM',
+      success: 'กรุณาตรวจสอบสถานะเครื่องข่ายของ CEC KVM และไปที่ IP address ใหม่',
       failed: 'เกิดข้อผิดพลาด กรุณาลองใหม่.',
       confirmBtn: 'โอเค',
       finishBtn: 'เสร็จ'
@@ -66,7 +66,7 @@ const th = {
       resetHid: 'รีเซ็ต HID',
       hidOnly: {
         title: 'โหมด HID-Only',
-        desc: 'หากเมาส์และคีย์บอร์ดของคุณหยุดตอบสนองและการรีเซ็ต HID ไม่ช่วย อาจเป็นปัญหาความเข้ากันได้ระหว่าง AllMyKVM และอุปกรณ์ ลองเปิดโหมด HID-Only เพื่อความเข้ากันได้ที่ดีขึ้น',
+        desc: 'หากเมาส์และคีย์บอร์ดของคุณหยุดตอบสนองและการรีเซ็ต HID ไม่ช่วย อาจเป็นปัญหาความเข้ากันได้ระหว่าง CEC KVM และอุปกรณ์ ลองเปิดโหมด HID-Only เพื่อความเข้ากันได้ที่ดีขึ้น',
         tip1: 'การเปิดโหมด HID-Only จะปิดการทำงานดิสก์จำลองและ NIC จำลอง',
         tip2: 'ในโหมด HID-Only ดิสก์จะลองจะถูกปิดใช้งาน',
         enable: 'เปิดใช้งานโหมด HID-Only',
@@ -97,7 +97,7 @@ const th = {
     },
     terminal: {
       title: 'เทอร์มินอล',
-      nanokvm: 'เทอร์มินอลของ AllMyKVM',
+      nanokvm: 'เทอร์มินอลของ CEC KVM',
       serial: 'เทอร์มินอลของ Serial Port',
       serialPort: 'Serial Port',
       serialPortPlaceholder: 'กรุณาเลือก serial port',
@@ -137,14 +137,14 @@ const th = {
     settings: {
       title: 'การตั้งค่า',
       about: {
-        title: 'เกี๋ยวกับ AllMyKVM',
+        title: 'เกี๋ยวกับ CEC KVM',
         information: 'ข้อมูล',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'เวอร์ชั่นแอปพิเคชั่น',
-        applicationTip: 'เวอร์ชั่นเว็บ AllMyKVM',
+        applicationTip: 'เวอร์ชั่นเว็บ CEC KVM',
         image: 'เวอร์ชั่น Image ระบบ',
-        imageTip: 'เวอร์ชั่น Image ระบบ AllMyKVM',
+        imageTip: 'เวอร์ชั่น Image ระบบ CEC KVM',
         deviceKey: 'คีย์อุปกรณ์',
         community: 'ชุมชน'
       },
@@ -197,8 +197,8 @@ const th = {
         download: 'ดาวน์โหลด',
         package: 'แพ็กเกจการติดตั้ง',
         unzip: 'และแตกไฟล์',
-        upTailscale: 'อัปโหลด tailscale ไปยังไดเรกทอรี /usr/bin/ ของ AllMyKVM',
-        upTailscaled: 'อัปโหลด tailscaled ไปยังไดเรกทอรี /usr/sbin/ ของ AllMyKVM',
+        upTailscale: 'อัปโหลด tailscale ไปยังไดเรกทอรี /usr/bin/ ของ CEC KVM',
+        upTailscaled: 'อัปโหลด tailscaled ไปยังไดเรกทอรี /usr/sbin/ ของ CEC KVM',
         refresh: 'รีเฟรชหน้าปัจจุบัน',
         notLogin: 'อุปกรณ์ยังไม่ได้ผูกบัญชี กรุณาล็อกอินและผูกอุปกรณ์นี้กับบัญชีของคุณ',
         urlPeriod: 'ลิงก์นี้ใช้ได้ 10 นาที',
