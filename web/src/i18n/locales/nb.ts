@@ -31,8 +31,8 @@ const nb = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for AllMyKVM',
-      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for CEC KVM',
+      success: 'Please check the network status of CEC KVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -93,7 +93,7 @@ const nb = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'AllMyKVM',
+      nanokvm: 'CEC KVM',
       serial: 'Seriell port',
       serialPort: 'Seriell port',
       serialPortPlaceholder: 'Vennligst angi den serielle porten',
@@ -117,14 +117,14 @@ const nb = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'Om AllMyKVM',
+        title: 'Om CEC KVM',
         information: 'Informasjon',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Applikasjonsversjon',
-        applicationTip: 'AllMyKVM web application version',
+        applicationTip: 'CEC KVM web application version',
         image: 'Arkivfil-versjon',
-        imageTip: 'AllMyKVM system image version',
+        imageTip: 'CEC KVM system image version',
         deviceKey: 'Enhetsnøkkel',
         community: 'Fellesskap'
       },
@@ -173,8 +173,8 @@ const nb = {
         download: 'Last ned',
         package: 'installasjonspakken',
         unzip: 'og pakk den ut',
-        upTailscale: 'Last opp Tailscale til AllMyKVM-enhetens mappe /usr/bin/',
-        upTailscaled: 'Last opp tailscaled til AllMyKVM-enhetens mappe /usr/sbin/',
+        upTailscale: 'Last opp Tailscale til CEC KVM-enhetens mappe /usr/bin/',
+        upTailscaled: 'Last opp tailscaled til CEC KVM-enhetens mappe /usr/sbin/',
         refresh: 'Last inn denne siden på nytt',
         notLogin:
           'Denne enheten er ikke knyttet til din konto enda. Vennligst logg inn og knytt den til kontoen din..',

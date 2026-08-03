@@ -31,8 +31,8 @@ const hu = {
     },
     wifi: {
       title: 'Wi-Fi',
-      description: 'Configure Wi-Fi for AllMyKVM',
-      success: 'Please check the network status of AllMyKVM and visit the new IP address.',
+      description: 'Configure Wi-Fi for CEC KVM',
+      success: 'Please check the network status of CEC KVM and visit the new IP address.',
       failed: 'Operation failed, please try again.',
       confirmBtn: 'Ok',
       finishBtn: 'Finished'
@@ -94,7 +94,7 @@ const hu = {
     },
     terminal: {
       title: 'Terminál',
-      nanokvm: 'AllMyKVM Terminál',
+      nanokvm: 'CEC KVM Terminál',
       serial: 'Soros port terminál',
       serialPort: 'Soros port',
       serialPortPlaceholder: 'Adja meg a soros portot',
@@ -118,14 +118,14 @@ const hu = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'AllMyKVM Névjegy',
+        title: 'CEC KVM Névjegy',
         information: 'Információ',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Alkalmazás verzió',
-        applicationTip: 'AllMyKVM web application version',
+        applicationTip: 'CEC KVM web application version',
         image: 'Képfájl verzió',
-        imageTip: 'AllMyKVM system image version',
+        imageTip: 'CEC KVM system image version',
         deviceKey: 'Eszköz kulcs',
         community: 'Közösség'
       },
@@ -174,8 +174,8 @@ const hu = {
         download: 'Letöltés a',
         package: 'telepítési csomag',
         unzip: 'és kicsomagolás',
-        upTailscale: 'Töltsön fel tailscale-t a AllMyKVM /usr/bin/ könyvtárába',
-        upTailscaled: 'Töltsön fel tailscaled-t a AllMyKVM /usr/sbin/ könyvtárába',
+        upTailscale: 'Töltsön fel tailscale-t a CEC KVM /usr/bin/ könyvtárába',
+        upTailscaled: 'Töltsön fel tailscaled-t a CEC KVM /usr/sbin/ könyvtárába',
         refresh: 'Frissítse az aktuális oldalt',
         notLogin:
           'Az eszköz még nincs kötve. Kérem, jelentkezzen be és kösse az eszközt a fiókjához.',

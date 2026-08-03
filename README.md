@@ -1,10 +1,10 @@
-# NanoKVM-Pro · AllMyKVM edition
+# NanoKVM-Pro · CEC KVM edition
 
-## This fork: AllMyKVM — an AllMyStuff mesh appliance
+## This fork: CEC KVM — an AllMyStuff mesh appliance
 
-This fork of [sipeed/NanoKVM-Pro](https://github.com/sipeed/NanoKVM-Pro) turns the device into **AllMyKVM**, a first-class appliance in the [AllMyStuff](https://allmystuff.works) ecosystem. Everything below this section is upstream Sipeed documentation and still applies.
+This fork of [sipeed/NanoKVM-Pro](https://github.com/sipeed/NanoKVM-Pro) turns the device into **CEC KVM**, a first-class appliance in the [AllMyStuff](https://allmystuff.works) ecosystem. Everything below this section is upstream Sipeed documentation and still applies.
 
-- **AllMyStuff branding** — web UI renamed AllMyKVM in every locale, restyled in AllMyStuff's design language (deep-violet dark theme, `#f11ea1` magenta accent, Inter font), with the AllMyStuff app icon as the favicon.
+- **CEC branding** — web UI renamed CEC KVM in every locale, with the CEC "critical error" mark as the favicon and login logo (`web/public/sipeed.ico` — upstream filename kept, ours bytes). The chrome is still AllMyStuff's design language (deep-violet dark theme, `#f11ea1` magenta accent, Inter font); only the name and the mark are CEC so far.
 - **Pure-Go mesh bridge** (`server/service/mesh/`) paired with a bundled [MyOwnMesh](https://myownmesh.net) daemon (Rust, pinned at `v0.3.2` in `.myownmesh-rev`; aarch64-musl build, run as a systemd `myownmesh.service` unit from `packaging/systemd/`).
 - **LAN-first claiming** — an unclaimed device advertises on the mDNS-only `allmystuff-local-claim-v1` rendezvous mesh (no relays, no wall clock needed — works pre-NTP), so a fresh KVM auto-appears in the claim sheet of any AllMyStuff app on the same LAN; WAN claiming stays off unless `publicClaims: true`.
 - **Zero-login access from anywhere** — the web UI tunnels over the mesh "sites" plane (no port forwarding or VPN), and mesh roster membership *is* the authentication for mesh viewers.

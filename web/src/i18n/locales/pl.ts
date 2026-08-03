@@ -85,7 +85,7 @@ const pl = {
     },
     terminal: {
       title: 'Terminal',
-      nanokvm: 'Terminal AllMyKVM',
+      nanokvm: 'Terminal CEC KVM',
       serial: 'Terminal portu szeregowego',
       serialPort: 'Port szeregowy',
       serialPortPlaceholder: 'Wprowadź port szeregowy',
@@ -119,14 +119,14 @@ const pl = {
     settings: {
       title: 'Settings',
       about: {
-        title: 'AllMyKVM - informacje',
+        title: 'CEC KVM - informacje',
         information: 'Informacje o systemie',
         ip: 'IP',
         mdns: 'mDNS',
         application: 'Wersja oprogramowania',
-        applicationTip: 'AllMyKVM web application version',
+        applicationTip: 'CEC KVM web application version',
         image: 'Wersja obrazu',
-        imageTip: 'AllMyKVM system image version',
+        imageTip: 'CEC KVM system image version',
         deviceKey: 'Klucz urządzenia',
         community: 'Społeczność'
       },
@@ -175,8 +175,8 @@ const pl = {
         download: 'Pobierz',
         package: 'pakiet instalacyjny',
         unzip: 'i wypakuj pliki',
-        upTailscale: 'Prześlij tailscale do AllMyKVM w katalogu /usr/bin/',
-        upTailscaled: 'Prześlij tailscaled do AllMyKVM w katalogu /usr/sbin/',
+        upTailscale: 'Prześlij tailscale do CEC KVM w katalogu /usr/bin/',
+        upTailscaled: 'Prześlij tailscaled do CEC KVM w katalogu /usr/sbin/',
         refresh: 'Odśwież obecną stronę',
         notLogin:
           'Urządzenie nie zostało jeszcze powiązane. Zaloguj się i powiąż to urządzenie ze swoim kontem.',

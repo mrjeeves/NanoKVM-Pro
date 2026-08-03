@@ -75,7 +75,7 @@ export const Login = () => {
             <img
               id="logo"
               src="/sipeed.ico"
-              alt="Sipeed"
+              alt="CEC KVM"
               onClick={(evt) => {
                 evt.preventDefault();
                 (evt.target as HTMLImageElement).classList.add('animate-spin');
