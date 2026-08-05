@@ -39,7 +39,7 @@ func TestSiteTunnelServesLargeResponseIntact(t *testing.T) {
 
 	var mu sync.Mutex
 	var out []SiteFrame
-	send := func(p string, f SiteFrame) error {
+	send := func(network, p string, f SiteFrame) error {
 		// Mimic production: sendSiteFrame json.Marshals the frame synchronously,
 		// which copies f.Data before meshConn's caller buffer is reused. A capture
 		// that just held the slice would alias that buffer and see corruption.
@@ -52,7 +52,7 @@ func TestSiteTunnelServesLargeResponseIntact(t *testing.T) {
 	}
 
 	h := newSiteHost(engine, allowed, send)
-	h.markRouteActive(route, peer)
+	h.markRouteActive(route, "turn-net", peer)
 
 	// Open the tunneled connection, then feed a plain HTTP/1.1 request for the
 	// big asset (Connection: close so the server writes one response and closes).

@@ -54,7 +54,7 @@ func TestReproTunnelBridge(t *testing.T) {
 	var mu sync.Mutex
 	tcpByConn := map[uint64]net.Conn{}
 
-	send := func(_ string, f SiteFrame) error {
+	send := func(_, _ string, f SiteFrame) error {
 		mu.Lock()
 		c := tcpByConn[f.Conn]
 		mu.Unlock()
@@ -76,7 +76,7 @@ func TestReproTunnelBridge(t *testing.T) {
 	}
 
 	host := newSiteHost(engine, port, send)
-	host.markRouteActive(route, peer)
+	host.markRouteActive(route, "turn-net", peer)
 
 	var connSeq uint64
 	fmt.Printf("REPRO LISTENING http://%s  (web/dist=%s)\n", addr, webDist)
