@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
@@ -17,13 +18,34 @@ import (
 )
 
 const (
-	imageDirectory  = "/data"
-	sdCardDirectory = "/sdcard"
-	mountDevice     = "/sys/kernel/config/usb_gadget/g0/configs/c.1/mass_storage.disk0/lun.0/file"
-	cdromFlag       = "/sys/kernel/config/usb_gadget/g0/configs/c.1/mass_storage.disk0/lun.0/cdrom"
-	roFlag          = "/sys/kernel/config/usb_gadget/g0/configs/c.1/mass_storage.disk0/lun.0/ro"
-	usbDisk         = "/boot/usb.disk0"
+	imageDirectory       = "/data"
+	sdCardDirectory      = "/sdcard"
+	mountDevice          = "/sys/kernel/config/usb_gadget/g0/configs/c.1/mass_storage.disk0/lun.0/file"
+	cdromFlag            = "/sys/kernel/config/usb_gadget/g0/configs/c.1/mass_storage.disk0/lun.0/cdrom"
+	roFlag               = "/sys/kernel/config/usb_gadget/g0/configs/c.1/mass_storage.disk0/lun.0/ro"
+	usbDisk              = "/boot/usb.disk0"
+	virtualMediaMetadata = "/data/.allmystuff-virtual-media.json"
 )
+
+type virtualMediaState struct {
+	Source string `json:"source"`
+	Label  string `json:"label"`
+	File   string `json:"file"`
+}
+
+func persistVirtualMedia(req proto.MountImageReq) {
+	if req.File == "" {
+		_ = os.Remove(virtualMediaMetadata)
+		return
+	}
+	if req.Source == "" {
+		return
+	}
+	data, err := json.Marshal(virtualMediaState{Source: req.Source, Label: req.Label, File: req.File})
+	if err == nil {
+		_ = os.WriteFile(virtualMediaMetadata, data, 0o600)
+	}
+}
 
 func (s *Service) GetImages(c *gin.Context) {
 	var rsp proto.Response
@@ -77,6 +99,7 @@ func (s *Service) MountImage(c *gin.Context) {
 			return
 		}
 		time.Sleep(3 * time.Second)
+		persistVirtualMedia(req)
 		rsp.OkRsp(c)
 		return
 	}
@@ -120,6 +143,7 @@ func (s *Service) MountImage(c *gin.Context) {
 	}
 
 	time.Sleep(3 * time.Second)
+	persistVirtualMedia(req)
 	rsp.OkRsp(c)
 	log.Debugf("mount image %s success", req.File)
 }
