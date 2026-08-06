@@ -1,6 +1,7 @@
 package mjpeg
 
 import (
+	"NanoKVM-Server/service/viewer"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +10,8 @@ import (
 var streamer = NewStreamer()
 
 func Connect(c *gin.Context) {
+	releaseViewer := viewer.Acquire()
+	defer releaseViewer()
 	c.Header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")

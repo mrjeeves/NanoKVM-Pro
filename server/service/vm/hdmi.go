@@ -17,6 +17,17 @@ const (
 	LT6911LoopoutPower = "/proc/lt6911_info/loopout_power"
 )
 
+// SetHdmiCaptureActive is the hardware seam used by the viewer lease manager
+// as well as the HTTP setting. It changes live state only; it does not invent a
+// second persisted preference behind the existing KVM UI.
+func SetHdmiCaptureActive(enabled bool) error {
+	status := "off"
+	if enabled {
+		status = "on"
+	}
+	return os.WriteFile(LT6911Power, []byte(status), 0644)
+}
+
 func (s *Service) GetHdmiCapture(c *gin.Context) {
 	var rsp proto.Response
 
@@ -41,18 +52,13 @@ func (s *Service) SetHdmiCapture(c *gin.Context) {
 		return
 	}
 
-	status := "off"
-	if req.Enabled {
-		status = "on"
-	}
-
-	if err := os.WriteFile(LT6911Power, []byte(status), 0644); err != nil {
+	if err := SetHdmiCaptureActive(req.Enabled); err != nil {
 		rsp.ErrRsp(c, -2, "failed to set HDMI capture status")
 		return
 	}
 
 	rsp.OkRsp(c)
-	log.Debugf("set HDMI capture status: %s", status)
+	log.Debugf("set HDMI capture status: %t", req.Enabled)
 }
 
 func (s *Service) GetHdmiPassthrough(c *gin.Context) {
