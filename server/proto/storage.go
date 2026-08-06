@@ -5,9 +5,11 @@ type GetImagesRsp struct {
 }
 
 type MountImageReq struct {
-	File     string `form:"file" validate:"omitempty"`
-	Cdrom    bool   `form:"cdrom" validate:"omitempty"`
-	ReadOnly bool   `form:"readOnly" validate:"omitempty"`
+	File     string `json:"file" form:"file" validate:"omitempty"`
+	Cdrom    bool   `json:"cdrom" form:"cdrom" validate:"omitempty"`
+	ReadOnly bool   `json:"readOnly" form:"readOnly" validate:"omitempty"`
+	Source   string `json:"source" form:"source" validate:"omitempty"`
+	Label    string `json:"label" form:"label" validate:"omitempty"`
 }
 
 type GetMountedImageRsp struct {
