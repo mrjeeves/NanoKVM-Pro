@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"NanoKVM-Server/buildinfo"
 	"NanoKVM-Server/common"
@@ -19,6 +20,7 @@ import (
 	"NanoKVM-Server/service/button"
 	"NanoKVM-Server/service/mesh"
 	"NanoKVM-Server/service/mesh/glue"
+	"NanoKVM-Server/service/viewer"
 	"NanoKVM-Server/service/vm"
 	"NanoKVM-Server/service/vm/jiggler"
 
@@ -38,6 +40,24 @@ func initialize() {
 
 	// init screen parameters
 	_ = common.GetScreen()
+	// Keep the HDMI receiver and capture path present only while a web or
+	// mesh-native screen viewer holds a lease. A short grace prevents hot-plug
+	// churn on re-offer.
+	vision := common.GetKvmVision()
+	viewer.Configure(func(active bool) {
+		if active {
+			vision.SetHDMI(true)
+			if err := vm.SetHdmiCaptureActive(true); err != nil {
+				log.Printf("viewer: enable HDMI capture: %v", err)
+			}
+			time.Sleep(20 * time.Millisecond)
+			return
+		}
+		if err := vm.SetHdmiCaptureActive(false); err != nil {
+			log.Printf("viewer: disable HDMI capture: %v", err)
+		}
+		vision.SetHDMI(false)
+	})
 
 	// run mouse jiggler
 	jiggler.GetJiggler().Run()
