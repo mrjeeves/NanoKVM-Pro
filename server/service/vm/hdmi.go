@@ -134,3 +134,30 @@ func disableHdmiPassthrough() error {
 	}
 	return nil
 }
+
+// RestoreHdmiPower asserts the HDMI capture path ON, and reports whether it had
+// to change anything.
+//
+// This exists because of a mess we made. On-demand HDMI (reverted) powered the
+// LT6911 down when nobody was watching, and this repo has never had a startup
+// path that turns it back on — before that feature nothing ever turned it off,
+// so nothing needed to. Reverting the feature restored that state faithfully
+// and left every device the lease had powered down still dark: a server restart
+// is what an update performs, and a restart alone was never going to write this
+// file. Only a full reboot (the driver reloads at its default) or a manual trip
+// through the web UI's capture toggle would.
+//
+// Asserting it at every start is also just correct on its own terms. The
+// operator's setting lives in this same /proc attribute, so there is no
+// persisted preference to override — a KVM that comes up with its capture path
+// dark is a KVM with no picture, and the only way to know is to look.
+func RestoreHdmiPower() (changed bool, err error) {
+	was, readErr := isHdmiEnabled(LT6911Power)
+	if writeErr := os.WriteFile(LT6911Power, []byte("on"), 0644); writeErr != nil {
+		return false, writeErr
+	}
+	// An unreadable attribute is reported as a change: "we wrote it and cannot
+	// prove it was already right" is the honest answer, and it only affects a
+	// log line.
+	return readErr != nil || !was, nil
+}

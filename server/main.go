@@ -41,6 +41,19 @@ func initialize() {
 	// init screen parameters
 	_ = common.GetScreen()
 
+	// Assert the HDMI capture path ON. The Pro has never had a startup path
+	// that did this — before on-demand HDMI (reverted) nothing ever powered it
+	// down, so nothing needed to put it back. Reverting that feature left every
+	// device it had powered down still dark, because an update restarts the
+	// server and a restart alone never writes this attribute.
+	vision := common.GetKvmVision()
+	vision.SetHDMI(true)
+	if changed, err := vm.RestoreHdmiPower(); err != nil {
+		log.Printf("hdmi: could not restore capture power: %v", err)
+	} else if changed {
+		log.Printf("hdmi: capture path was off at startup — restored")
+	}
+
 	// Put the KVM's own drive in front of the attached machine, so it always
 	// has our files to open. Fills an empty slot only — virtual media shares
 	// this LUN and always wins.
