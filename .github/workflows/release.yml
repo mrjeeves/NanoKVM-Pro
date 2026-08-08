@@ -124,6 +124,16 @@ jobs:
           cp $O/etc/systemd/system/usbdhcp.service      bundle/overlay/etc/systemd/system/
           cp $O/etc/systemd/system/usbnet-share.service bundle/overlay/etc/systemd/system/
           chmod +x bundle/overlay/usr/local/bin/*.sh
+
+          # The KVM's own USB drive — the volume the attached machine sees,
+          # carrying the CEC Support launcher and our icon. Built by the SAME
+          # script `just usbdisk` runs, so a release and a dev build can never
+          # ship different drives. Built here rather than on the device: mkfs
+          # has no business in a KVM's boot path, and a half-written image is a
+          # drive the host asks the customer to format.
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq dosfstools mtools
+          ./scripts/build-usbdisk.sh bundle/usbdisk.img.gz
           chmod +x bundle/NanoKVM-Server bundle/myownmesh
           file bundle/myownmesh bundle/NanoKVM-Server
           test -f bundle/web/index.html
@@ -134,7 +144,7 @@ jobs:
         run: |
           set -e
           NAME="nanokvm-pro-mesh-aarch64"
-          tar -czf "${NAME}.tar.gz" -C bundle NanoKVM-Server myownmesh web overlay
+          tar -czf "${NAME}.tar.gz" -C bundle NanoKVM-Server myownmesh web overlay usbdisk.img.gz
           sha256sum "${NAME}.tar.gz" > "${NAME}.tar.gz.sha256"
           ls -la "${NAME}.tar.gz"*
 

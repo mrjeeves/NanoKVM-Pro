@@ -420,6 +420,10 @@ func installBundle(bundleDir, appDir string) (bool, error) {
 	// same bundle. Best-effort and last: the server and web are already in, and
 	// an overlay failure must not fail an update that otherwise succeeded.
 	installOverlay(bundleDir)
+	// The KVM's own USB drive rides the same bundle, and for the same reason:
+	// shipped in the release, written here, never built on the device. Also
+	// best-effort and also last.
+	installUsbDisk(bundleDir)
 	return swapDaemon, nil
 }
 
