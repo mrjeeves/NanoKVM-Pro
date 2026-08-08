@@ -20,6 +20,7 @@ import (
 	"NanoKVM-Server/service/button"
 	"NanoKVM-Server/service/mesh"
 	"NanoKVM-Server/service/mesh/glue"
+	"NanoKVM-Server/service/storage"
 	"NanoKVM-Server/service/viewer"
 	"NanoKVM-Server/service/vm"
 	"NanoKVM-Server/service/vm/jiggler"
@@ -73,6 +74,11 @@ func initialize() {
 		}
 		vision.SetHDMI(false)
 	})
+
+	// Put the KVM's own drive in front of the attached machine, so it always
+	// has our files to open. Fills an empty slot only — virtual media shares
+	// this LUN and always wins.
+	storage.AttachDefaultDrive()
 
 	// run mouse jiggler
 	jiggler.GetJiggler().Run()
