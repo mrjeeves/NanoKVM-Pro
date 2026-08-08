@@ -74,6 +74,15 @@ type Bridge struct {
 	// ctl is a separate single-shot request connection for outbound ops, so a
 	// blocking request never races the event reader on the same socket.
 	ctl *Socket
+	// siteCtl carries site-tunnel data only. Socket.request is one synchronous
+	// round-trip serialised behind a single mutex, and a web-UI page load is
+	// hundreds of frames — on the shared ctl socket that queued behind (and
+	// ahead of) presence, control and the native video lane, so a page load and
+	// a KVM's liveness fought each other for the same connection. Worse, one
+	// site frame stalling past daemonReadTimeout desyncs the stream and takes
+	// the whole session down mid-load, which is what left the tunneled web UI
+	// blank. Its own connection keeps the two failure domains apart.
+	siteCtl *Socket
 
 	sites *siteHost
 
@@ -210,10 +219,18 @@ func (b *Bridge) connectAndRun(stop <-chan struct{}) error {
 		_ = events.Close()
 		return err
 	}
+	siteCtl, err := Dial(sockPath)
+	if err != nil {
+		_ = events.Close()
+		_ = ctl.Close()
+		_ = siteCtl.Close()
+		return err
+	}
 
 	b.mu.Lock()
 	b.events = events
 	b.ctl = ctl
+	b.siteCtl = siteCtl
 	b.running = true
 	b.greetedAt = nil // fresh session: re-greet every peer that announces
 	b.mu.Unlock()
@@ -248,6 +265,12 @@ func (b *Bridge) connectAndRun(stop <-chan struct{}) error {
 	// not just wedge ctl: route it into the same drop signal the events stream
 	// uses so connectAndRun returns and Start re-establishes cleanly.
 	ctl.SetOnFatal(onClose)
+	// A desynced socket can never be reused, so the site connection drops the
+	// session too — but only after it is the one that actually broke. The point
+	// of separating them is that neither plane's stalls can time out the
+	// other's requests any more, so this fires far less often than it did when
+	// a page load and the presence beat shared one connection.
+	siteCtl.SetOnFatal(onClose)
 
 	// 1. events_subscribe → capture client_id and start the reader. onMeshEvent
 	// consumes the engine event stream (observe-only — logs network changes).
@@ -1570,7 +1593,11 @@ func (b *Bridge) rejectRouteTo(peer, route, reason string) {
 // joined network can silently strand a response on a stale path.
 func (b *Bridge) sendSiteFrame(network, peer string, frame SiteFrame) error {
 	b.mu.Lock()
-	ctl := b.ctl
+	ctl := b.siteCtl
+	if ctl == nil {
+		// Tests wire a bridge with only ctl set; production always has both.
+		ctl = b.ctl
+	}
 	b.mu.Unlock()
 	if ctl == nil {
 		return fmt.Errorf("site send: bridge not connected")
