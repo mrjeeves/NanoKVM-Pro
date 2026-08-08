@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"NanoKVM-Server/proto"
+	"NanoKVM-Server/service/viewer"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -16,6 +17,19 @@ const (
 	LT6911HdmiPower    = "/proc/lt6911_info/hdmi_power"
 	LT6911LoopoutPower = "/proc/lt6911_info/loopout_power"
 )
+
+// HdmiCaptureActive reports the receiver's live power state — the same value
+// GetHdmiCapture hands the web UI. Used to seed the viewer lease at startup so
+// it inherits the operator's setting rather than overriding it.
+func HdmiCaptureActive() bool {
+	enabled, err := isHdmiEnabled(LT6911Power)
+	if err != nil {
+		// Unreadable /proc: assume the receiver may be used, matching the
+		// pre-lease behaviour of coming up live.
+		return true
+	}
+	return enabled
+}
 
 // SetHdmiCaptureActive is the hardware seam used by the viewer lease manager
 // as well as the HTTP setting. It changes live state only; it does not invent a
@@ -56,6 +70,13 @@ func (s *Service) SetHdmiCapture(c *gin.Context) {
 		rsp.ErrRsp(c, -2, "failed to set HDMI capture status")
 		return
 	}
+	// The UI reads this setting back off live /proc state, so the lease has to
+	// respect it: enabling re-arms on-demand activation, disabling pins the
+	// receiver off however many viewers connect. Note keeps the lease's cached
+	// view in step with the write we just made, so the next lease transition
+	// is not skipped as a redundant no-op.
+	viewer.Note(req.Enabled)
+	viewer.SetAllowed(req.Enabled)
 
 	rsp.OkRsp(c)
 	log.Debugf("set HDMI capture status: %t", req.Enabled)
