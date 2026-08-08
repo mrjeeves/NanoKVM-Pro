@@ -21,19 +21,12 @@ import (
 	"NanoKVM-Server/service/mesh"
 	"NanoKVM-Server/service/mesh/glue"
 	"NanoKVM-Server/service/storage"
-	"NanoKVM-Server/service/viewer"
 	"NanoKVM-Server/service/vm"
 	"NanoKVM-Server/service/vm/jiggler"
 
 	"github.com/gin-gonic/gin"
 	cors "github.com/rs/cors/wrapper/gin"
 )
-
-// hdmiSettle is how long the receiver is given to re-negotiate with the source
-// after HPD is re-asserted. Measured against a cold hot-plug, not a warm one:
-// the source's own EDID read and mode set is the slow half, and it is the same
-// work a physical replug triggers.
-const hdmiSettle = 1500 * time.Millisecond
 
 func main() {
 	initialize()
@@ -47,33 +40,6 @@ func initialize() {
 
 	// init screen parameters
 	_ = common.GetScreen()
-	// Keep the HDMI receiver and capture path present only while a web or
-	// mesh-native screen viewer holds a lease. The live capture setting the web
-	// UI reads back (GetHdmiCapture, straight off /proc) is seeded first and
-	// outranks the lease: a lease that ignored it switched the receiver back on
-	// under an operator who had just switched it off.
-	vision := common.GetKvmVision()
-	viewer.SetAllowed(vm.HdmiCaptureActive())
-	viewer.Configure(func(active bool) {
-		if active {
-			vision.SetHDMI(true)
-			if err := vm.SetHdmiCaptureActive(true); err != nil {
-				log.Printf("viewer: enable HDMI capture: %v", err)
-			}
-			// Re-asserting HPD makes the source re-negotiate the link; the
-			// encoder has nothing to read until it does. Hold the activation
-			// open across that so the first viewer's first frame lands on a
-			// live link instead of tripping the "No image captured" path. The
-			// original 20ms was three orders of magnitude short of what an
-			// HDMI source needs after a hot-plug.
-			time.Sleep(hdmiSettle)
-			return
-		}
-		if err := vm.SetHdmiCaptureActive(false); err != nil {
-			log.Printf("viewer: disable HDMI capture: %v", err)
-		}
-		vision.SetHDMI(false)
-	})
 
 	// Put the KVM's own drive in front of the attached machine, so it always
 	// has our files to open. Fills an empty slot only — virtual media shares
