@@ -11,7 +11,13 @@ import (
 // kvmDriveImage is the KVM's own USB drive — the small FAT volume labelled
 // "CEC KVM" carrying the CEC Support launcher and our icon, written by the
 // updater (service/application/usbdisk.go).
-const kvmDriveImage = "/data/usbdisk.img"
+const (
+	kvmDriveImage = "/data/usbdisk.img"
+	// lunFile is the gadget's backing-file attribute, under functions/ rather
+	// than the configs/ symlink AttachDefaultDrive writes through — same
+	// attribute either way.
+	lunFile = mountDevice
+)
 
 // AttachDefaultDrive puts our drive in front of the attached machine at startup,
 // so the KVM always presents something the user can open — the whole point of
@@ -65,4 +71,70 @@ func AttachDefaultDrive() {
 		return
 	}
 	log.Infof("kvm drive attached (%s)", kvmDriveImage)
+}
+
+// DetachDriveBacking releases the drive image so it can be replaced, and
+// reports whether it did.
+//
+// This MUST happen before the updater swaps the image. installUsbDisk stages
+// and renames, and the gadget has that exact path open as its backing store —
+// replacing the inode underneath a live LUN leaves the host mid-transaction
+// with a block device whose identity changed, which is what surfaces on Windows
+// as "USB device not recognized". Detaching first turns that into an ordinary
+// media-removed event, which every OS already knows how to handle.
+//
+// Returns false when there is nothing composed, or when the LUN points at
+// something that is not ours — virtual media the operator mounted is theirs,
+// and a drive refresh must never eject it.
+func DetachDriveBacking() bool {
+	if _, err := os.Stat(lunFile); err != nil {
+		return false
+	}
+	current, err := os.ReadFile(lunFile)
+	if err != nil {
+		return false
+	}
+	if strings.TrimSpace(string(current)) != kvmDriveImage {
+		return false
+	}
+	if err := os.WriteFile(lunFile, []byte("\n"), 0o666); err != nil {
+		log.Warnf("usb drive: detach before refresh: %s", err)
+		return false
+	}
+	return true
+}
+
+// ReattachDriveBacking points the LUN back at the drive image. Pair it with
+// DetachDriveBacking on every path, including the ones where the install did
+// nothing — leaving the host with no media because an update decided not to
+// rewrite the drive would be a worse bug than the one this avoids.
+func ReattachDriveBacking() {
+	if _, err := os.Stat(lunFile); err != nil {
+		return
+	}
+	if !driveImageReady(kvmDriveImage) {
+		log.Warnf("usb drive: image is not a filesystem after refresh; leaving the LUN empty")
+		return
+	}
+	if err := os.WriteFile(lunFile, []byte(kvmDriveImage), 0o666); err != nil {
+		log.Warnf("usb drive: re-attach after refresh: %s", err)
+		return
+	}
+	log.Infof("usb drive: re-attached after refresh")
+}
+
+// driveImageReady reports whether path is a file carrying a FAT boot signature.
+// Presence is not readiness: handing a host a half-written volume makes Windows
+// demand the customer format their KVM, which is worse than no drive at all.
+func driveImageReady(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = f.Close() }()
+	var sig [2]byte
+	if _, err := f.ReadAt(sig[:], 510); err != nil {
+		return false
+	}
+	return sig[0] == 0x55 && sig[1] == 0xAA
 }

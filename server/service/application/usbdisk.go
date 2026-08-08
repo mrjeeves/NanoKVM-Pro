@@ -1,6 +1,7 @@
 package application
 
 import (
+	"NanoKVM-Server/service/storage"
 	"compress/gzip"
 	"io"
 	"os"
@@ -65,6 +66,16 @@ func installUsbDisk(bundleDir string) bool {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		log.Warnf("update: usb drive: %s", err)
 		return false
+	}
+
+	// Release the drive from the gadget BEFORE replacing it, and re-attach after.
+	// The gadget has this exact path open as its backing store, so the rename
+	// below would swap the inode underneath a live LUN and leave the host
+	// mid-transaction with a block device whose identity changed — which is what
+	// surfaces as "USB device not recognized". Inside the function rather than at
+	// the call site, so no caller can forget it.
+	if storage.DetachDriveBacking() {
+		defer storage.ReattachDriveBacking()
 	}
 
 	// Stage and rename, so an interrupted write can never become the drive.
