@@ -30,6 +30,7 @@ RUN apt-get update \
 # (/work) still resolves this baked toolchain. Baking it here means `build-pro`
 # never re-downloads and never hits the toolchain-setup interactivity.
 COPY support /opt/nanokvm-pro/support
+RUN find /opt/nanokvm-pro/support -type f \( -name '*.sh' -o -name '*.py' \) -exec sed -i 's/\r$//' {} +
 RUN cd /opt/nanokvm-pro/support/scripts && ./toolchain_setup.sh \
     && test -f /opt/nanokvm-pro/support/toolchains/toolchain.ini \
     # Assert the libopus-dev headers actually landed in the sysroot. install_libopus

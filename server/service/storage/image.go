@@ -2,12 +2,14 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -16,6 +18,8 @@ import (
 
 	"NanoKVM-Server/proto"
 )
+
+var imageMountMu sync.Mutex
 
 const (
 	imageDirectory       = "/data"
@@ -87,65 +91,62 @@ func (s *Service) MountImage(c *gin.Context) {
 		return
 	}
 
-	// unmount
+	// A direct mount/unmount replaces any lazy provider. The provider performs
+	// this request in the same USB restart, then releases FUSE after the gadget
+	// no longer has the virtual file open.
+	handled, err := s.remote.replaceActive(req)
+	if !handled {
+		err = mountImage(req)
+	}
+	if err != nil {
+		log.Errorf("mount image %s failed: %s", req.File, err)
+		rsp.ErrRsp(c, -2, err.Error())
+		return
+	}
+	if !handled {
+		persistVirtualMedia(req)
+	}
+	rsp.OkRsp(c)
+	log.Debugf("mount image %s success", req.File)
+}
+
+func mountImage(req proto.MountImageReq) error {
+	imageMountMu.Lock()
+	defer imageMountMu.Unlock()
+
 	if req.File == "" {
 		if err := os.WriteFile(mountDevice, []byte("\n"), 0o666); err != nil {
-			log.Errorf("unmount file failed: %s", err)
-			rsp.ErrRsp(c, -3, "unmount image failed")
-			return
+			return fmt.Errorf("unmount image failed: %w", err)
 		}
 		if err := restartUSB(0); err != nil {
-			rsp.ErrRsp(c, -3, "unmount image failed")
-			return
+			return fmt.Errorf("unmount image failed: %w", err)
 		}
 		time.Sleep(3 * time.Second)
-		persistVirtualMedia(req)
-		rsp.OkRsp(c)
-		return
+		return nil
 	}
 
 	if err := restartUSB(1); err != nil {
-		rsp.ErrRsp(c, -2, "mount image failed")
-		return
+		return fmt.Errorf("mount image failed: %w", err)
 	}
-
 	cdrom := "0"
 	readOnly := "0"
-
 	if req.Cdrom {
-		cdrom = "1"
-		readOnly = "1"
+		cdrom, readOnly = "1", "1"
 	}
-
 	if req.ReadOnly {
 		readOnly = "1"
 	}
-
-	// cdrom flag
 	if err := os.WriteFile(cdromFlag, []byte(cdrom), 0o666); err != nil {
-		log.Errorf("set cdrom flag failed: %s", err)
-		rsp.ErrRsp(c, -4, "set cdrom flag failed")
-		return
+		return fmt.Errorf("set cdrom flag failed: %w", err)
 	}
-
-	// ro flag
 	if err := os.WriteFile(roFlag, []byte(readOnly), 0o666); err != nil {
-		log.Errorf("set ro flag failed: %s", err)
-		rsp.ErrRsp(c, -5, "set ro flag failed")
-		return
+		return fmt.Errorf("set ro flag failed: %w", err)
 	}
-
-	// mount
 	if err := os.WriteFile(mountDevice, []byte(req.File), 0o666); err != nil {
-		log.Errorf("mount file %s failed: %s", req.File, err)
-		rsp.ErrRsp(c, -6, "mount image failed")
-		return
+		return fmt.Errorf("mount image failed: %w", err)
 	}
-
 	time.Sleep(3 * time.Second)
-	persistVirtualMedia(req)
-	rsp.OkRsp(c)
-	log.Debugf("mount image %s success", req.File)
+	return nil
 }
 
 func (s *Service) GetMountedImage(c *gin.Context) {
