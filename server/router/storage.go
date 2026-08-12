@@ -20,4 +20,10 @@ func storageRouter(r *gin.Engine) {
 	api.POST("/storage/download/image", service.DownloadImage)       // download image
 	api.GET("/storage/download/image/status", service.StatusImage)   // download image
 	api.GET("/storage/download/image/enabled", service.ImageEnabled) // download image
+	api.GET("/storage/remote-media/enabled", service.RemoteMediaEnabled)
+	api.GET("/storage/remote-media", service.RemoteMedia)
+	api.POST("/storage/remote-media/session", service.RemoteMediaPollOpen)
+	api.GET("/storage/remote-media/session/next", service.RemoteMediaPollNext)
+	api.POST("/storage/remote-media/session/reply", service.RemoteMediaPollReply)
+	api.DELETE("/storage/remote-media/session", service.RemoteMediaPollClose)
 }

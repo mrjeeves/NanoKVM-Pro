@@ -172,9 +172,15 @@ build-server:
       -v "$(pwd):/work" {{image}} bash -c '
         set -e
         export PATH="/usr/local/go/bin:${PATH}"
+        # A Windows bind mount may expose source without Docker-readable Git
+        # metadata. build.sh already stamps its own version/commit variables.
+        export GOFLAGS="-buildvcs=false"
         mkdir -p /work/support/toolchains
         cp /opt/nanokvm-pro/support/toolchains/toolchain.ini /work/support/toolchains/toolchain.ini
-        cd /work/server && ./build.sh
+        # The repository may be mounted from a Windows checkout. Run a
+        # disposable LF-normalized copy so the device build is host-agnostic.
+        sed "s/\r$//" /work/server/build.sh > /tmp/nanokvm-pro-build.sh
+        cd /work/server && bash /tmp/nanokvm-pro-build.sh
         chown "${HOST_UID}:${HOST_GID}" NanoKVM-Server 2>/dev/null || true
       '
     test -f server/NanoKVM-Server && echo "OK -> server/NanoKVM-Server"

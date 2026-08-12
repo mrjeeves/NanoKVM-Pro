@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"NanoKVM-Server/buildinfo"
 	"NanoKVM-Server/common"

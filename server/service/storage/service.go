@@ -2,9 +2,11 @@ package storage
 
 import "os"
 
-type Service struct{}
+type Service struct {
+	remote *remoteMediaManager
+}
 
 func NewService() *Service {
 	_ = os.Remove(sentinelPath)
-	return &Service{}
+	return &Service{remote: newRemoteMediaManager()}
 }
