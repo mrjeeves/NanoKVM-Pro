@@ -29,6 +29,8 @@ const (
 	roFlag               = "/sys/kernel/config/usb_gadget/g0/configs/c.1/mass_storage.disk0/lun.0/ro"
 	usbDisk              = "/boot/usb.disk0"
 	virtualMediaMetadata = "/data/.allmystuff-virtual-media.json"
+	usbGadgetUDC         = "/sys/kernel/config/usb_gadget/g0/UDC"
+	usbUDCClass          = "/sys/class/udc"
 )
 
 type virtualMediaState struct {
@@ -145,7 +147,31 @@ func mountImage(req proto.MountImageReq) error {
 	if err := os.WriteFile(mountDevice, []byte(req.File), 0o666); err != nil {
 		return fmt.Errorf("mount image failed: %w", err)
 	}
+	// restartUSB creates/enables the mass-storage function before its final
+	// media flags and backing file can be assigned. Rebind once those values are
+	// in place so firmware enumerates the requested CD-ROM/disk, not the empty
+	// or previous LUN that existed during the script restart.
+	if err := rebindUSBGadget(); err != nil {
+		return fmt.Errorf("mount image failed: %w", err)
+	}
 	time.Sleep(3 * time.Second)
+	return nil
+}
+
+func rebindUSBGadget() error {
+	if err := os.WriteFile(usbGadgetUDC, []byte("\n"), 0o666); err != nil {
+		return fmt.Errorf("unbind USB gadget: %w", err)
+	}
+	controllers, err := os.ReadDir(usbUDCClass)
+	if err != nil {
+		return fmt.Errorf("list USB controllers: %w", err)
+	}
+	if len(controllers) == 0 {
+		return fmt.Errorf("no USB device controller is available")
+	}
+	if err := os.WriteFile(usbGadgetUDC, []byte(controllers[0].Name()), 0o666); err != nil {
+		return fmt.Errorf("bind USB gadget: %w", err)
+	}
 	return nil
 }
 
