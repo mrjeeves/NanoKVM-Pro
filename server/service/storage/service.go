@@ -8,5 +8,6 @@ type Service struct {
 
 func NewService() *Service {
 	_ = os.Remove(sentinelPath)
+	recoverUSBAtStartup()
 	return &Service{remote: newRemoteMediaManager()}
 }
