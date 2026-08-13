@@ -13,6 +13,12 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
 
 ## Unreleased
 
+- **A failed or interrupted install-media mount can no longer take down USB.**
+  Every gadget rebuild now closes and reopens HID around the operation, retries
+  UDC binding, and rolls a failed media function back to a valid composite
+  gadget. Server restarts also detach dead FUSE mounts left by an interrupted
+  stream, so later remote-media sessions are not poisoned by an old endpoint.
+
 - **Over-the-air updates can now deliver the device-side helpers at all.** The
   helper scripts and their systemd units — `/usr/local/bin/usbdhcp.sh` and
   `usbdhcp.service`, say — shipped only in the image overlay, so they reached a
