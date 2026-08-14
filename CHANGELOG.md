@@ -16,8 +16,9 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
 - **A failed or interrupted install-media mount can no longer take down USB.**
   Every gadget rebuild now closes and reopens HID around the operation, retries
   UDC binding, and rolls a failed media function back to a valid composite
-  gadget. Server restarts also detach dead FUSE mounts left by an interrupted
-  stream, so later remote-media sessions are not poisoned by an old endpoint.
+  gadget. Server startup also rebinds a blank UDC and ejects dead FUSE media
+  left by an interrupted stream, so installing this update repairs a KVM that
+  an older build already left without USB.
 
 - **Over-the-air updates can now deliver the device-side helpers at all.** The
   helper scripts and their systemd units — `/usr/local/bin/usbdhcp.sh` and
