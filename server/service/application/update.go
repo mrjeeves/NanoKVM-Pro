@@ -102,16 +102,17 @@ func (s *Service) Update(c *gin.Context) {
 	// and re-establishes on the new build.
 	time.Sleep(1 * time.Second)
 
-	// A daemon bump is the one case a routine update restarts the daemon, and it
-	// MUST go before the server restart below: `systemctl restart nanokvm` kills
-	// this very process, so anything after it never runs. Restarting the daemon
-	// drops the mesh tunnel the update rode in on — fine now that the OK is
-	// flushed — and it's the only way a daemon-side fix (e.g. a mesh-connectivity
-	// fix) reaches the device, which the server + web swap alone can't deliver.
-	// Skipped when the daemon didn't change, so an ordinary update leaves the
-	// daemon and its tunnel untouched.
+	// A daemon bump — the binary, its unit, or its prestart script — is the one
+	// case a routine update restarts the daemon, and it MUST go before the
+	// server restart below: `systemctl restart nanokvm` kills this very process,
+	// so anything after it never runs. Restarting the daemon drops the mesh
+	// tunnel the update rode in on — fine now that the OK is flushed — and it's
+	// the only way a daemon-side fix (e.g. a mesh-connectivity fix, or a unit
+	// change systemd reads only on start) reaches the device, which the server +
+	// web swap alone can't deliver. Skipped when none of the three changed, so
+	// an ordinary update leaves the daemon and its tunnel untouched.
 	if daemonChanged {
-		log.Infof("bundled myownmesh daemon changed; restarting daemon")
+		log.Infof("bundled myownmesh daemon or its unit changed; restarting daemon")
 		_ = exec.Command("sh", "-c", daemonRestartCmd).Run()
 	}
 	_ = exec.Command("sh", "-c", serverRestartCmd).Run()
@@ -271,10 +272,12 @@ func sha256File(path string) (string, error) {
 // It also swaps in the pinned myownmesh daemon the bundle carries, but ONLY
 // when that binary differs from the one already installed — the common
 // server-only update leaves the daemon (and the mesh tunnel it serves)
-// completely alone. It returns whether the daemon was replaced so the caller
-// can restart it: a daemon-side fix (e.g. a mesh-connectivity fix) rides
-// exactly this path, since the server + web swap alone can't deliver one. A
-// bundle with no daemon (older layout) simply skips it.
+// completely alone. It returns whether the caller should RESTART the daemon:
+// either the binary was replaced, or the bundle's overlay carried a changed
+// myownmesh unit / prestart script, which systemd only picks up on a start.
+// A daemon-side fix (e.g. a mesh-connectivity fix) rides exactly this path,
+// since the server + web swap alone can't deliver one. A bundle with no daemon
+// (older layout) simply skips it.
 func installBundle(bundleDir, appDir string) (bool, error) {
 	serverSrc := filepath.Join(bundleDir, "NanoKVM-Server")
 	webSrc := filepath.Join(bundleDir, "web")
@@ -419,12 +422,16 @@ func installBundle(bundleDir, appDir string) (bool, error) {
 	// The device-side helpers (systemd units + the scripts they run) ride the
 	// same bundle. Best-effort and last: the server and web are already in, and
 	// an overlay failure must not fail an update that otherwise succeeded.
-	installOverlay(bundleDir)
+	_, meshHelpersChanged := installOverlay(bundleDir)
 	// The KVM's own USB drive rides the same bundle, and for the same reason:
 	// shipped in the release, written here, never built on the device. Also
 	// best-effort and also last.
 	installUsbDisk(bundleDir)
-	return swapDaemon, nil
+	// A changed unit or prestart script needs the same restart a changed binary
+	// does — systemd re-reads the unit on start, so without this a unit fix
+	// would sit on disk until an unrelated reboot. The restart itself is the
+	// caller's, already sequenced after the OK is flushed.
+	return swapDaemon || meshHelpersChanged, nil
 }
 
 // overlayRoot is where the bundle's overlay/ tree is written — the filesystem
@@ -444,8 +451,28 @@ const (
 	systemdWantsDir = "etc/systemd/system/multi-user.target.wants"
 )
 
+// meshHelperPaths are the overlay files that make up the myownmesh service:
+// the unit and the ExecStartPre script it runs by path. Keyed by their
+// slash-separated path within the overlay tree.
+//
+// They are singled out because they are the one part of the overlay whose
+// effects do NOT have to wait for a boot. Everything else there is a USB
+// helper whose unit reconfigures the link an update may have arrived over, so
+// installOverlay deliberately never starts those. The mesh daemon is different:
+// the update path already knows how to restart it safely (after the OK is
+// flushed, before the server bounce), so a changed unit or prestart script is
+// reported to the caller and applied on that same restart. Without this a unit
+// fix would land on disk and sit there, inert, until something else rebooted
+// the device.
+var meshHelperPaths = map[string]bool{
+	systemdUnitDir + "/myownmesh.service":     true,
+	"kvmapp/system/bin/myownmesh-prestart.sh": true,
+}
+
 // installOverlay writes the bundle's `overlay/` tree onto the device, mirroring
-// the paths the image build lays down, and reports how many files changed.
+// the paths the image build lays down. It reports how many files changed and
+// whether any of them was a myownmesh helper (see meshHelperPaths), which the
+// caller folds into its daemon-restart decision.
 //
 // This is the Pro's half of a gap the over-the-air path could not cover at all.
 // The helper scripts and their units — /usr/local/bin/usbdhcp.sh and
@@ -461,14 +488,18 @@ const (
 //
 // Only files that differ are written, so a re-run (the startup reconcile, an
 // update to the same version) touches nothing. Units are reloaded and enabled,
-// never STARTED: their effects belong to a boot, and one of them reconfigures
-// the USB link the update may have arrived over.
-func installOverlay(bundleDir string) int {
+// never STARTED here: their effects belong to a boot, and one of them
+// reconfigures the USB link the update may have arrived over. The myownmesh
+// unit is the documented exception — it is still not started here, but its
+// change is reported so the caller's existing, carefully sequenced daemon
+// restart applies it.
+func installOverlay(bundleDir string) (int, bool) {
 	src := filepath.Join(bundleDir, "overlay")
 	if !isDir(src) {
-		return 0 // a bundle from an older release — nothing to do
+		return 0, false // a bundle from an older release — nothing to do
 	}
 	changed := 0
+	meshChanged := false
 	var units []string
 	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -502,7 +533,14 @@ func installOverlay(bundleDir string) int {
 			log.Warnf("update: install %s: %s", rel, err)
 			return nil
 		}
-		log.Infof("update: installed %s (takes effect on the next boot)", rel)
+		if meshHelperPaths[filepath.ToSlash(rel)] {
+			// The daemon's own helpers are the exception to "takes effect on
+			// the next boot": the caller restarts it, so say so accurately.
+			log.Infof("update: installed %s (applied when the daemon restarts)", rel)
+			meshChanged = true
+		} else {
+			log.Infof("update: installed %s (takes effect on the next boot)", rel)
+		}
 		changed++
 		if strings.HasSuffix(rel, ".service") {
 			units = append(units, rel)
@@ -525,7 +563,7 @@ func installOverlay(bundleDir string) int {
 		// the next boot.
 		_ = exec.Command("systemctl", "daemon-reload").Run()
 	}
-	return changed
+	return changed, meshChanged
 }
 
 // enableUnit makes a unit run at boot by creating the multi-user.target wants

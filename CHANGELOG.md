@@ -13,6 +13,26 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
 
 ## Unreleased
 
+- **The mesh daemon's unit and prestart script now ship over the air.**
+  `packaging/systemd/myownmesh.service` and `myownmesh-prestart.sh` reached a
+  device only by an image flash or an on-site `just deploy`: the release
+  bundle's overlay named the USB helpers explicitly and nothing else, so a
+  change to the unit sat in the repo looking applied. They ride the overlay
+  now, both or neither — the unit invokes the prestart script by path, and
+  shipping half of a coupled pair is the silent failure the overlay exists to
+  prevent. The journal rate limit in this release is the first to ride it.
+
+- **A changed unit actually takes effect, rather than landing inert.** systemd
+  reads a unit only when the service starts, so a delivered-but-not-applied
+  unit would have waited for an unrelated reboot. `installOverlay` now reports
+  whether it wrote a myownmesh helper, and both install paths — Settings →
+  Update and the startup reconcile — fold that into the daemon restart they
+  already perform for a changed binary. The restart keeps its existing, careful
+  sequencing: after the update's OK is flushed (it drops the mesh tunnel the
+  update rode in on) and before the server bounce that kills the process doing
+  the work. The USB helpers are deliberately excluded and stay boot-only —
+  one of them reconfigures the very link an update may have arrived over.
+
 - **MyOwnMesh daemon pinned to v0.3.9** (`.myownmesh-rev`, was `v0.3.3`) — six
   releases of connection work reach the device. TURN now falls back to TCP and
   TLS when a network blocks plain UDP relay, mDNS endpoint dialing backs off
@@ -52,9 +72,7 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
   MyOwnMesh's own `service install` has rendered since v0.3.4, and keep any
   future log storm off a rootfs the journal shares with everything else. The
   known stale-TURN firehose is already fixed in the daemon; this is the
-  second line of defence. The unit is not carried in the OTA bundle, so this
-  one lands on a `just deploy` or a reflash rather than through
-  Settings → Update.
+  second line of defence.
 
 - **A failed or interrupted install-media mount can no longer take down USB.**
   Every gadget rebuild now closes and reopens HID around the operation, retries

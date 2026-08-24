@@ -124,6 +124,17 @@ jobs:
           cp $O/etc/systemd/system/usbdhcp.service      bundle/overlay/etc/systemd/system/
           cp $O/etc/systemd/system/usbnet-share.service bundle/overlay/etc/systemd/system/
           chmod +x bundle/overlay/usr/local/bin/*.sh
+          # The mesh daemon's unit and the ExecStartPre script it runs, from
+          # packaging/ rather than the image overlay (that tree doesn't carry
+          # them). They ride the overlay so an OTA can deliver a unit change —
+          # a journal rate limit, an ordering fix — instead of it waiting for
+          # an on-site `just deploy`. Both or neither: the unit invokes the
+          # prestart script by path and the two are a matched pair, so shipping
+          # half of a coupled change is the silent failure this exists to stop.
+          mkdir -p bundle/overlay/kvmapp/system/bin
+          cp packaging/systemd/myownmesh.service      bundle/overlay/etc/systemd/system/
+          cp packaging/systemd/myownmesh-prestart.sh  bundle/overlay/kvmapp/system/bin/
+          chmod +x bundle/overlay/kvmapp/system/bin/myownmesh-prestart.sh
 
           # The KVM's own USB drive — the volume the attached machine sees,
           # carrying the CEC Support launcher and our icon. Built by the SAME

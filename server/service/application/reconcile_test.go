@@ -160,6 +160,8 @@ func writeOverlay(t *testing.T, bundle string, files map[string]string) {
 	}
 }
 
+const meshTestUnit = "[Unit]\nDescription=MyOwnMesh daemon\n\n[Service]\nExecStart=/kvmapp/system/bin/myownmesh serve\nSyslogIdentifier=myownmesh\n\n[Install]\nWantedBy=multi-user.target\n"
+
 const testUnit = "[Unit]\nDescription=usb dhcp\n\n[Service]\nExecStart=/usr/local/bin/usbdhcp.sh start\n\n[Install]\nWantedBy=multi-user.target\n"
 
 // The Pro's half of the gap, and the wider one: its helper scripts and units
@@ -218,8 +220,8 @@ func TestInstallOverlayPlacesHelpersAndEnablesUnits(t *testing.T) {
 	}
 
 	// Re-running changes nothing: no rewrites onto flash, no duplicate symlink.
-	if n := installOverlay(bundle); n != 0 {
-		t.Errorf("re-install wrote %d files, want 0", n)
+	if n, mesh := installOverlay(bundle); n != 0 || mesh {
+		t.Errorf("re-install wrote %d files (mesh=%v), want 0, false", n, mesh)
 	}
 }
 
@@ -237,7 +239,7 @@ func TestInstallOverlaySkipsUnitWithoutWantedBy(t *testing.T) {
 	overlayRootForTest = target
 	defer func() { overlayRootForTest = orig }()
 
-	if n := installOverlay(bundle); n != 1 {
+	if n, _ := installOverlay(bundle); n != 1 {
 		t.Fatalf("installed %d files, want 1", n)
 	}
 	if _, err := os.Lstat(filepath.Join(target, systemdWantsDir, "oneshot.service")); err == nil {
@@ -245,11 +247,106 @@ func TestInstallOverlaySkipsUnitWithoutWantedBy(t *testing.T) {
 	}
 }
 
+// A unit change reaches a device with an already-current daemon binary — the
+// case this exists for. systemd reads a unit only when the service starts, so
+// reporting the change is what turns a file on disk into a setting in force;
+// without it a journal rate limit or an ordering fix would sit inert until
+// something else rebooted the box.
+func TestInstallReleaseRestartsDaemonForUnitChangeAlone(t *testing.T) {
+	root := t.TempDir()
+	bundle := bundleWithDaemon(t, root, "same-daemon")
+	writeOverlay(t, bundle, map[string]string{
+		"etc/systemd/system/myownmesh.service": meshTestUnit,
+	})
+	// Byte-identical to the bundle's: the daemon step is a no-op, so a restart
+	// can only be asked for by the unit.
+	daemon := installedDaemon(t, root, "same-daemon")
+
+	target := t.TempDir()
+	orig := overlayRootForTest
+	overlayRootForTest = target
+	defer func() { overlayRootForTest = orig }()
+
+	restart, helpers, err := installReleaseFromBundle(bundle, daemon)
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if helpers != 1 {
+		t.Fatalf("installed %d helper files, want 1", helpers)
+	}
+	if !restart {
+		t.Error("the mesh unit changed but no daemon restart was asked for")
+	}
+	if _, err := os.Stat(filepath.Join(target, "etc/systemd/system/myownmesh.service")); err != nil {
+		t.Fatalf("mesh unit not installed: %v", err)
+	}
+
+	// Converged: a second pass must not ask for another restart, or every
+	// reconcile would bounce the mesh tunnel for nothing.
+	restart, helpers, err = installReleaseFromBundle(bundle, daemon)
+	if err != nil {
+		t.Fatalf("re-install: %v", err)
+	}
+	if helpers != 0 || restart {
+		t.Errorf("re-install wrote %d files and asked restart=%v, want 0, false", helpers, restart)
+	}
+}
+
+// The prestart script is half of the same service: the unit runs it by path at
+// ExecStartPre, so a change to it also only lands on a start.
+func TestInstallOverlayReportsMeshPrestartChange(t *testing.T) {
+	root := t.TempDir()
+	bundle := bundleWithDaemon(t, root, "d")
+	writeOverlay(t, bundle, map[string]string{
+		"kvmapp/system/bin/myownmesh-prestart.sh": "#!/bin/sh\nexit 0\n",
+	})
+
+	target := t.TempDir()
+	orig := overlayRootForTest
+	overlayRootForTest = target
+	defer func() { overlayRootForTest = orig }()
+
+	n, mesh := installOverlay(bundle)
+	if n != 1 || !mesh {
+		t.Fatalf("installed %d files (mesh=%v), want 1, true", n, mesh)
+	}
+	// It must land executable — systemd execs it, and a lost +x bit fails the
+	// unit's ExecStartPre, which takes the whole daemon down with it.
+	fi, err := os.Stat(filepath.Join(target, "kvmapp/system/bin/myownmesh-prestart.sh"))
+	if err != nil {
+		t.Fatalf("prestart not installed: %v", err)
+	}
+	if fi.Mode().Perm()&0o111 == 0 {
+		t.Errorf("prestart mode %v is not executable", fi.Mode().Perm())
+	}
+}
+
+// A USB helper is NOT a mesh helper: those units reconfigure the link an
+// update may have arrived over, so they stay boot-only and must never drag the
+// mesh daemon into a restart.
+func TestInstallOverlayDoesNotReportUsbHelperAsMesh(t *testing.T) {
+	root := t.TempDir()
+	bundle := bundleWithDaemon(t, root, "d")
+	writeOverlay(t, bundle, map[string]string{
+		"usr/local/bin/usbdhcp.sh":           "#!/bin/sh\nexit 0\n",
+		"etc/systemd/system/usbdhcp.service": testUnit,
+	})
+
+	target := t.TempDir()
+	orig := overlayRootForTest
+	overlayRootForTest = target
+	defer func() { overlayRootForTest = orig }()
+
+	if n, mesh := installOverlay(bundle); n != 2 || mesh {
+		t.Fatalf("installed %d files (mesh=%v), want 2, false", n, mesh)
+	}
+}
+
 // A bundle from an older release has no overlay/. That must be a quiet no-op,
 // never something that fails an update which already swapped in a working
 // server and web.
 func TestInstallOverlayIgnoresBundleWithout(t *testing.T) {
-	if n := installOverlay(t.TempDir()); n != 0 {
-		t.Fatalf("installed %d files from an empty bundle", n)
+	if n, mesh := installOverlay(t.TempDir()); n != 0 || mesh {
+		t.Fatalf("installed %d files from an empty bundle (mesh=%v)", n, mesh)
 	}
 }

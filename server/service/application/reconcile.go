@@ -83,7 +83,7 @@ func ReconcileRelease(version, daemonBin, stateDir string) {
 		}
 
 		if daemonChanged {
-			log.Infof("release reconcile: installed the %s daemon; restarting it", version)
+			log.Infof("release reconcile: installed the %s daemon or its unit; restarting it", version)
 			_ = exec.Command("sh", "-c", daemonRestartCmd).Run()
 		}
 		if helpers > 0 {
@@ -145,20 +145,27 @@ func reconcileRelease(version, daemonBin string) (bool, int, error) {
 
 // installReleaseFromBundle installs the parts of an extracted bundle that a
 // device updated by an older server never received: the helper overlay and the
-// pinned daemon. Reports whether the daemon changed and how many helper files
-// were written.
+// pinned daemon. Reports whether the daemon needs RESTARTING — because its
+// binary changed, or because the overlay carried a changed myownmesh unit or
+// prestart script, which systemd only reads on a start — and how many helper
+// files were written.
 //
 // Helpers first, and their result is returned even when the daemon step fails:
 // they're independent payloads, a bundle whose daemon already matches must
 // still be able to deliver a helper, and having placed one is worth recording
 // either way.
 func installReleaseFromBundle(bundleDir, daemonBin string) (bool, int, error) {
-	helpers := installOverlay(bundleDir)
+	helpers, meshHelpersChanged := installOverlay(bundleDir)
 	daemonChanged, err := installDaemonFromBundle(bundleDir, daemonBin)
 	if err != nil {
-		return false, helpers, err
+		// Report the helper's restart need honestly even here, for the same
+		// reason `helpers` is reported: independent payloads. The current
+		// caller retries the whole reconcile on an error rather than acting on
+		// this, and that retry still restarts — a daemon step only errors when
+		// the binaries differ, so the next attempt's own compare asks for it.
+		return meshHelpersChanged, helpers, err
 	}
-	return daemonChanged, helpers, nil
+	return daemonChanged || meshHelpersChanged, helpers, nil
 }
 
 // installDaemonFromBundle swaps the bundle's myownmesh into daemonDst when it
