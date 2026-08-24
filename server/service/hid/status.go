@@ -2,6 +2,7 @@ package hid
 
 import (
 	"NanoKVM-Server/proto"
+	"fmt"
 	"os"
 	"os/exec"
 	"time"
@@ -76,12 +77,29 @@ func (s *Service) SetHidMode(c *gin.Context) {
 func (s *Service) Reset(c *gin.Context) {
 	var rsp proto.Response
 
+	if err := ResetGadget(); err != nil {
+		rsp.ErrRsp(c, -1, "failed to reset")
+		log.Errorf("reset hid failed: %s", err)
+		return
+	}
+
+	rsp.OkRsp(c)
+	log.Debugf("reset hid success")
+}
+
+// ResetGadget rebuilds the USB gadget with usbdev.sh, in the current HID mode,
+// closing the HID descriptors across the operation and reopening them after —
+// the script recreates /dev/hidg*, so a descriptor held open across it refers
+// to a function that no longer exists.
+//
+// Factored out of the Reset handler so the USB supervisor can take the same
+// path a user pressing "reset" takes, rather than growing a second, subtly
+// different way to rebuild the same gadget.
+func ResetGadget() error {
 	mode := getHidMode()
 	arg, ok := hidModeCmdMap[mode]
 	if !ok {
-		rsp.ErrRsp(c, -1, "invalid hid mode")
-		log.Errorf("invalid hid mode: %s", mode)
-		return
+		return fmt.Errorf("invalid hid mode: %s", mode)
 	}
 
 	h := GetHid()
@@ -93,15 +111,13 @@ func (s *Service) Reset(c *gin.Context) {
 	}()
 
 	if err := exec.Command("bash", USBScript, arg).Run(); err != nil {
-		rsp.ErrRsp(c, -2, "failed to reset")
-		log.Errorf("Failed to execute script: %v: %s", USBScript, err)
-		return
+		return fmt.Errorf("run %s %s: %w", USBScript, arg, err)
 	}
 
+	// usbdev.sh returns before the gadget has finished re-enumerating; the
+	// descriptors are not there yet if we reopen immediately.
 	time.Sleep(3 * time.Second)
-
-	rsp.OkRsp(c)
-	log.Debugf("reset hid success")
+	return nil
 }
 
 func getHidMode() string {

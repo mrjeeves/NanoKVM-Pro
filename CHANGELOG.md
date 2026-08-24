@@ -13,6 +13,46 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
 
 ## Unreleased
 
+- **The USB gadget is supervised now, not just repaired at startup.** Recovery
+  used to run at exactly two moments — once when the server started, and
+  whenever a media change touched the gadget — so a link that died at any other
+  time stayed dead until somebody restarted the KVM or unplugged the cable.
+  Nothing was watching. A new supervisor samples
+  `/sys/class/udc/<udc>/state` every two seconds, which is the gadget
+  framework's own view of the LINK and which nothing here read before: configfs'
+  `g0/UDC` is a *binding* record and stays populated across a dead link, so the
+  "is UDC non-empty" test everything else used cannot see this failure at all.
+  A link that reads `not attached` past a debounce is rebound; if that doesn't
+  bring it back, the gadget is rebuilt through the same `usbdev.sh` path the
+  UI's reset button takes.
+
+- **The supervisor is deliberately reluctant, because a healthy KVM in a
+  switched-off computer reads exactly the same as a wedged one.** A link that
+  has been seen working and then dies waits 15 s; one never seen working since
+  boot waits 3 minutes, because that is also what an idle powered-off host looks
+  like. Attempts back off from 30 s to 15 min and reset the moment the link
+  returns, and a media change suppresses the watchdog entirely for 10 s so it
+  can never race the mount path it would otherwise mistake for a fault. This
+  matters more on the Pro than on the NanoKVM: slot power means the KVM outlives
+  every host reboot, shutdown and BIOS reset, so it sees far more of exactly the
+  transitions that are easy to misread.
+
+- **Failed keystrokes are evidence now, instead of just log lines.** A write to
+  `/dev/hidg*` fails with `ESHUTDOWN` when the gadget isn't enumerated — the
+  descriptor opens fine and every report goes nowhere — and the entire response
+  was one error line per keystroke. Those failures are counted and exposed to
+  the supervisor, which uses them to resolve the ambiguity above: somebody
+  driving a KVM whose input goes nowhere is not an idle powered-off host, so
+  sustained HID faults collapse the 3-minute wait to 15 seconds. Timeouts and
+  back-pressure are deliberately not counted — a busy host must never have its
+  gadget rebound underneath an interactive user.
+
+- **Link-state changes are logged.** A gadget failure in the field used to leave
+  almost no evidence behind. The sequence of states with timestamps is what
+  separates "the host cut VBUS and we never came back" from "we never enumerated
+  in the first place" — different bugs, different fixes, previously
+  indistinguishable from a support ticket.
+
 - **The mesh daemon's unit and prestart script now ship over the air.**
   `packaging/systemd/myownmesh.service` and `myownmesh-prestart.sh` reached a
   device only by an image flash or an on-site `just deploy`: the release

@@ -117,6 +117,15 @@ func mountImage(req proto.MountImageReq) (retErr error) {
 	imageMountMu.Lock()
 	defer imageMountMu.Unlock()
 
+	// This function unbinds and rebinds the UDC as a matter of course. Tell the
+	// watchdog, or the "not attached" it sees mid-mount is indistinguishable
+	// from the dead link it exists to repair — and it would recover a gadget
+	// that is being deliberately rebuilt underneath it. Marked again on the way
+	// out, so the settle window covers the re-enumeration too, not just the
+	// teardown.
+	noteUSBGadgetMutated()
+	defer noteUSBGadgetMutated()
+
 	// usbdev.sh recreates every gadget function, including /dev/hidg*. Close
 	// the old descriptors around the entire operation and wait for the new ones
 	// before allowing input traffic to resume.
