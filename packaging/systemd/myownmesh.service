@@ -44,6 +44,15 @@ RestartSec=2
 # survive SIGTERM; give it a few seconds, then systemd escalates to SIGKILL.
 TimeoutStopSec=5
 KillMode=mixed
+# Keep a future log storm out of the journal (the Pro's journal shares the
+# rootfs with everything else). v0.3.9's daemon already silences the known
+# stale-TURN ChannelData firehose at source; this per-service rate limit is the
+# second line of defence for anything like it, and matches what MyOwnMesh's own
+# `service install` renders. SyslogIdentifier also makes the daemon easy to
+# filter operationally (`journalctl -t myownmesh`).
+SyslogIdentifier=myownmesh
+LogRateLimitIntervalSec=5min
+LogRateLimitBurst=100
 
 [Install]
 WantedBy=multi-user.target
