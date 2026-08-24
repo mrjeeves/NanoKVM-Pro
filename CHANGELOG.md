@@ -13,6 +13,49 @@ verbatim in [`CHANGELOG.upstream.md`](CHANGELOG.upstream.md).
 
 ## Unreleased
 
+- **MyOwnMesh daemon pinned to v0.3.9** (`.myownmesh-rev`, was `v0.3.3`) — six
+  releases of connection work reach the device. TURN now falls back to TCP and
+  TLS when a network blocks plain UDP relay, mDNS endpoint dialing backs off
+  instead of hammering LAN candidates that never answer, relay admission and
+  reconnect no longer flap a peer between rescued and dropped, and signaling
+  identity is re-verified on recovery. The daemon also silences upstream's
+  stale-TURN `ChannelData` error storm at source — a restarted public relay
+  could otherwise flood the journal with it while relaying was perfectly
+  healthy. Settings → Update installs the new daemon and restarts
+  `myownmesh.service` on the sha256 compare, so it reaches the fleet over the
+  mesh rather than needing an on-site `just deploy`.
+
+- **Remote viewers pick up the new TURN fallbacks with no bridge change.** The
+  venue ICE union (`server/service/mesh/venue.go`) is a deliberately defensive
+  subset of the daemon's config schema, so the added
+  `turn:…?transport=tcp` and `turns:…:5349?transport=tcp` URLs flow straight
+  through `config_show` into the browser's `RTCIceServer` list. The bridge
+  keeps omitting `stun_servers`/`turn_servers` on network add, which is what
+  lets a daemon-side default change like this one apply at all.
+
+- **The daemon's config schema migrates v2 → v3 on first start**, rewriting the
+  built-in reference relay into the three-URL UDP/TCP/TLS set. Automatic and
+  idempotent, and it touches only that exact old default: the LAN-only claim
+  mesh's explicit `turn_servers: []` opt-out and any operator-supplied relay
+  are left alone. **Downgrade caveat:** a v3 config is rejected outright by a
+  daemon older than v0.3.5 (`config version 3 is from a newer build`), and
+  `serve` exits on that error, so rolling back to a Pro build pinned at
+  ≤ v0.3.4 leaves `myownmesh.service` restart-looping until
+  `/data/myownmesh/config.json` is deleted (the prestart script writes a fresh
+  minimal one, and the bridge re-adds its networks on the next handshake).
+  This matters more on the Pro than on the NanoKVM: the daemon's own updater
+  is pinned off (`MYOWNMESH_AUTOUPDATE=0`), so the config only ever moves
+  forward when the release pipeline moves the pin.
+
+- **`myownmesh.service` rate-limits its own journal.** `SyslogIdentifier=`
+  plus `LogRateLimitIntervalSec=5min` / `LogRateLimitBurst=100` match what
+  MyOwnMesh's own `service install` has rendered since v0.3.4, and keep any
+  future log storm off a rootfs the journal shares with everything else. The
+  known stale-TURN firehose is already fixed in the daemon; this is the
+  second line of defence. The unit is not carried in the OTA bundle, so this
+  one lands on a `just deploy` or a reflash rather than through
+  Settings → Update.
+
 - **A failed or interrupted install-media mount can no longer take down USB.**
   Every gadget rebuild now closes and reopens HID around the operation, retries
   UDC binding, and rolls a failed media function back to a valid composite
