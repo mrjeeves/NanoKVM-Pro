@@ -239,6 +239,18 @@ just undeploy <device-ip>         # reversible: disable + remove unit + reboot
 which bundles **both** the NanoKVM-Pro server **and** the MyOwnMesh daemon pinned
 in `.myownmesh-rev`. The `.sha256` is verified.
 
+The bundle also carries an `overlay/` tree mirroring absolute device paths, and
+`myownmesh.service` + `myownmesh-prestart.sh` ride it — so a unit change reaches
+the fleet through **Settings → Update**, not only through `just deploy` or a
+reflash. The two travel together on purpose: the unit runs the prestart script
+by path at `ExecStartPre`, so delivering one without the other is how a coupled
+change fails silently. Because systemd reads a unit only when the service
+starts, a changed unit or prestart script also asks the installer for the same
+daemon restart a changed binary does — otherwise the file would land and do
+nothing until the next reboot. The USB helpers in that overlay are the opposite
+case and stay boot-only: `usbdhcp.service` reconfigures the link an update may
+have arrived over, so it is installed and enabled but never started.
+
 > **OTA caveat.** The Pro's stock OTA installs `nanokvmpro_*_arm64.deb` via
 > `dpkg -i`, which overwrites `/kvmapp/server/NanoKVM-Server` with the stock
 > (non-mesh) build. Re-run `just deploy` after an OTA to restore the mesh
