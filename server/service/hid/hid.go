@@ -150,11 +150,17 @@ func (h *Hid) WriteHid0(data []byte) {
 		case errors.Is(err, os.ErrDeadlineExceeded):
 			log.Debugf("write to %s timeout", HID0)
 		default:
+			// Not a timeout and not our own close: on a gadget this is
+			// ESHUTDOWN, i.e. the host is not enumerated and this report went
+			// nowhere. Record it so the USB supervisor can act — logging it
+			// per keystroke was the entire previous response.
+			recordWriteFault(err)
 			log.Errorf("write to %s failed: %s", HID0, err)
 		}
 		return
 	}
 
+	clearWriteFaults()
 	log.Debugf("write to %s: %v", HID0, data)
 }
 
@@ -175,11 +181,17 @@ func (h *Hid) WriteHid1(data []byte) {
 		case errors.Is(err, os.ErrDeadlineExceeded):
 			log.Debugf("write to %s timeout", HID1)
 		default:
+			// Not a timeout and not our own close: on a gadget this is
+			// ESHUTDOWN, i.e. the host is not enumerated and this report went
+			// nowhere. Record it so the USB supervisor can act — logging it
+			// per keystroke was the entire previous response.
+			recordWriteFault(err)
 			log.Errorf("write to %s failed: %s", HID1, err)
 		}
 		return
 	}
 
+	clearWriteFaults()
 	log.Debugf("write to %s: %v", HID1, data)
 }
 
@@ -200,10 +212,16 @@ func (h *Hid) WriteHid2(data []byte) {
 		case errors.Is(err, os.ErrDeadlineExceeded):
 			log.Debugf("write to %s timeout", HID2)
 		default:
+			// Not a timeout and not our own close: on a gadget this is
+			// ESHUTDOWN, i.e. the host is not enumerated and this report went
+			// nowhere. Record it so the USB supervisor can act — logging it
+			// per keystroke was the entire previous response.
+			recordWriteFault(err)
 			log.Errorf("write to %s failed: %s", HID2, err)
 		}
 		return
 	}
 
+	clearWriteFaults()
 	log.Debugf("write to %s: %v", HID2, data)
 }
