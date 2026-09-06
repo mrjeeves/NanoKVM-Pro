@@ -68,16 +68,15 @@ type Mesh struct {
 	// DaemonBin is the best-guess path to the myownmesh daemon binary, used by
 	// the packaging/deploy tooling — not by the Go bridge directly.
 	DaemonBin string `yaml:"daemonBin"`
-	// HandRaise wires the physical user button to the CEC "hand raise"
-	// (Ask-for-help) system.
-	HandRaise HandRaise `yaml:"handRaise"`
+	// SupportApproval wires the physical user button to the CEC support approval
+	// window for the current or next support-number request.
+	SupportApproval SupportApproval `yaml:"supportApproval"`
 }
 
-// HandRaise configures the physical-button → CEC hand-raise integration.
-type HandRaise struct {
-	// ButtonEnabled wires the device's user button — the USR button on the Pro —
-	// to toggle the CEC hand raise with a tap. (The web UI and /api/mesh/help
-	// endpoints raise a hand regardless of this setting.)
+// SupportApproval configures the physical-button → CEC support-approval integration.
+type SupportApproval struct {
+	// ButtonEnabled lets a tap approve the current request or wait five minutes
+	// for one request. The web UI can approve independently of this setting.
 	ButtonEnabled bool `yaml:"buttonEnabled"`
 	// InputDevice is where to read the button. Either an evdev node
 	// ("/dev/input/eventN") or, for a button the on-device firmware owns via the
