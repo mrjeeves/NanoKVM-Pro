@@ -46,7 +46,7 @@ var defaultConfig = &Config{
 		// co-reads its live level from debugfs — the "gpio:<n>" input mode. A tap
 		// raises the hand; the firmware still toggles the inside screen on/off,
 		// which is harmless.
-		HandRaise: HandRaise{
+		SupportApproval: SupportApproval{
 			ButtonEnabled: true,
 			InputDevice:   "gpio:98",
 			KeyCode:       0,

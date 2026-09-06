@@ -125,13 +125,13 @@ func run() {
 		// shells out and bounces the USB gadget.
 		go vm.EnsureUsbNetworkForClaim(bridge.Claimed(), conf.Mesh.Home)
 
-		// Wire the physical user (USR) button to the CEC hand-raise. Off by
+		// Wire the physical user (USR) button to the CEC support approval. Off by
 		// default on the Pro (the USR node isn't confirmed); self-disabling if
 		// the input node isn't present.
 		button.Watch(button.Config{
-			Enabled: conf.Mesh.HandRaise.ButtonEnabled,
-			Device:  conf.Mesh.HandRaise.InputDevice,
-			KeyCode: conf.Mesh.HandRaise.KeyCode,
+			Enabled: conf.Mesh.SupportApproval.ButtonEnabled,
+			Device:  conf.Mesh.SupportApproval.InputDevice,
+			KeyCode: conf.Mesh.SupportApproval.KeyCode,
 		}, bridge)
 	}
 	mesh.RegisterRoutes(r, bridge)

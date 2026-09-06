@@ -58,16 +58,25 @@ func initialize() {
 		instance.Mesh.Enabled = true
 	}
 
-	// Same story for the USR-button hand raise: a server.yaml written before this
+	// Same story for the USR-button support approval: a server.yaml written before this
 	// feature has no `mesh.handRaise` block, so Unmarshal leaves it disabled. An
 	// absent key means the operator never opted out — turn it on and point it at
 	// the USR button's GPIO. An explicit
 	// `mesh: { handRaise: { buttonEnabled: false } }` is still honored.
-	if !viper.IsSet("mesh.handRaise.buttonEnabled") {
-		instance.Mesh.HandRaise.ButtonEnabled = true
+	if !viper.IsSet("mesh.supportApproval.buttonEnabled") {
+		instance.Mesh.SupportApproval.ButtonEnabled = true
+		if viper.IsSet("mesh.handRaise.buttonEnabled") {
+			instance.Mesh.SupportApproval.ButtonEnabled = viper.GetBool("mesh.handRaise.buttonEnabled")
+		}
 	}
-	if instance.Mesh.HandRaise.InputDevice == "" {
-		instance.Mesh.HandRaise.InputDevice = "gpio:98"
+	if !viper.IsSet("mesh.supportApproval.inputDevice") && viper.IsSet("mesh.handRaise.inputDevice") {
+		instance.Mesh.SupportApproval.InputDevice = viper.GetString("mesh.handRaise.inputDevice")
+	}
+	if !viper.IsSet("mesh.supportApproval.keyCode") && viper.IsSet("mesh.handRaise.keyCode") {
+		instance.Mesh.SupportApproval.KeyCode = viper.GetInt("mesh.handRaise.keyCode")
+	}
+	if instance.Mesh.SupportApproval.InputDevice == "" {
+		instance.Mesh.SupportApproval.InputDevice = "gpio:98"
 	}
 
 	if instance.Authentication == "disable" {
