@@ -22,6 +22,11 @@ import (
 
 var imageMountMu sync.Mutex
 
+var (
+	usbReadFile  = os.ReadFile
+	usbWriteFile = os.WriteFile
+)
+
 const (
 	imageDirectory       = "/data"
 	sdCardDirectory      = "/sdcard"
@@ -203,8 +208,8 @@ func rebindUSBGadget() error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(usbGadgetUDC, []byte("\n"), 0o666); err != nil {
-		return fmt.Errorf("unbind USB gadget: %w", err)
+	if err := unbindUSBGadget(); err != nil {
+		return err
 	}
 	time.Sleep(100 * time.Millisecond)
 	return bindUSBGadget(controller)
